@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension point="org.eclipse.ui.startup">
+      <startup class="se.yrell.developertools.ToolsEarlyStartup"/>
+   </extension>
+
+   <extension point="org.eclipse.ui.preferencePages">
+      <page
+            id="se.yrell.developertools.preferencePage"
+            name="Yrell Developer Tools"
+            class="se.yrell.developertools.internal.preferences.DeveloperStudioToolsPreferencePage"/>
+   </extension>
+
+   <extension point="org.eclipse.core.runtime.preferences">
+      <initializer class="se.yrell.developertools.internal.preferences.DeveloperStudioToolsPreferenceInitializer"/>
+   </extension>
+
+</plugin>
