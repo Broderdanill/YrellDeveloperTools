@@ -1,4 +1,4 @@
-# Yrell Developer Tools 0.1.47
+# Yrell Developer Tools 0.1.48
 
 Developer Studio helper plugin for BMC Helix/AR System Developer Studio.
 
@@ -6,8 +6,8 @@ Developer Studio helper plugin for BMC Helix/AR System Developer Studio.
 
 1. Close Developer Studio.
 2. Remove older `se.yrell.developertools_*.jar` from `x64/plugins`.
-3. Copy `install/se.yrell.developertools_0.1.47.jar` to `x64/plugins`.
-4. If Fast object lists is used as Java agent, update `DeveloperStudio.ini` to point at `se.yrell.developertools_0.1.47.jar`.
+3. Copy `install/se.yrell.developertools_0.1.48.jar` to `x64/plugins`.
+4. If Fast object lists is used as Java agent, update `DeveloperStudio.ini` to point at `se.yrell.developertools_0.1.48.jar`.
 5. Start Developer Studio with `-clean -consoleLog`.
 
 Fast object lists still requires the same jar to be loaded with `-javaagent` in `DeveloperStudio.ini` if you want the initial server-side object-list request to be filtered before BMC classes load.
@@ -86,7 +86,11 @@ It removes only the current view instance. The AR field remains on the form and 
 
 0.1.40 uses BMC's own `RemoveFieldFromViewCommand` path when available so the current form view refreshes visually immediately and participates in the editor command stack.
 
-## 0.1.47 changes
+## 0.1.48 changes
+
+- Fast object lists now respects the visible **Base** checkbox. Default remains Overlay + Custom only, but if Base is ticked in Developer Studio Filter options the server-side filter includes Base as well.
+- The Java agent settings file now writes `bmc.ds.fastForms.allowManualBase=true` so manual Base selection is honored.
+
 
 - Disabled the delayed ObjectListView `triggerFilters()` UI fallback by default. The server-side Fast object list filter should now do the filtering without a second full TableViewer re-input pass on the SWT UI thread.
 - Agent settings written from the preference page now persist `bmc.ds.fastForms.triggerUiFilter=false`.
@@ -94,6 +98,6 @@ It removes only the current view instance. The AR field remains on the form and 
 
 ## Build notes
 
-- Bundle version: `0.1.47`
+- Bundle version: `0.1.48`
 - Java bytecode: 17 / major version 61
 - Same jar can be used both as Eclipse plugin and Fast object lists Java agent.

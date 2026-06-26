@@ -397,9 +397,9 @@ public final class FastFormsBridge {
             debug("RegularQuery overlay/custom filter already applied for " + safeClassName(provider));
             return;
         }
-        Set<Integer> values = allowedValues();
-        if (values.contains(0)) {
-            debug("base included; not applying RegularQuery filter");
+        Set<Integer> values = allowedValuesForCurrentFilter();
+        if (values.isEmpty()) {
+            debug("no customization values selected; RegularQuery filter skipped");
             return;
         }
         if (!isCustomizableProvider(provider)) {
@@ -448,8 +448,8 @@ public final class FastFormsBridge {
     /** Called from ARBaseNamedListProvider.getEntries(...). */
     public static Object augmentEntryQualifier(Object provider, Object qualifier) {
         if (!isEnabled() || !serverFilter()) return qualifier;
-        Set<Integer> values = allowedValues();
-        if (values.contains(0)) return qualifier;
+        Set<Integer> values = allowedValuesForCurrentFilter();
+        if (values.isEmpty()) return qualifier;
         if (!isCustomizableProvider(provider)) return qualifier;
 
         try {
@@ -480,8 +480,8 @@ public final class FastFormsBridge {
      */
     public static Object getPartialObjectsWithServerCustomizationFilter(Object provider, Object existingNameList, long since, Object criteria) {
         if (!isEnabled() || !serverFilter()) return null;
-        Set<Integer> values = allowedValues();
-        if (values.contains(Integer.valueOf(0))) return null;
+        Set<Integer> values = allowedValuesForCurrentFilter();
+        if (values.isEmpty()) return new ArrayList();
         if (!isCustomizableProvider(provider)) return null;
 
         try {
@@ -679,8 +679,8 @@ public final class FastFormsBridge {
 
     public static String filterOverlaySql(String sql, Object store, String alias, String objectName) {
         if (!isEnabled() || !serverFilter() || sql == null) return sql;
-        Set<Integer> values = allowedValues();
-        if (values.contains(Integer.valueOf(0))) return sql;
+        Set<Integer> values = allowedValuesForCurrentFilter();
+        if (values.isEmpty()) return sql;
         // Only patch broad list queries. Leave exact-name overlay SQL alone so opening a named base object
         // is less likely to break if the user deliberately works outside the default overlay/custom list.
         if (objectName != null && objectName.trim().length() > 0) return sql;
@@ -753,12 +753,28 @@ public final class FastFormsBridge {
     }
 
     private static Set<Integer> allowedValuesFromCheckboxState() {
+        Set<Integer> configured = allowedValues();
         Set<String> labels = lastCustomizationCheckboxLabels;
-        if (labels == null || labels.isEmpty()) return allowedValues();
+        if (labels == null || labels.isEmpty()) return configured;
+
+        Set<Integer> selected = new HashSet<Integer>();
+        for (String label : labels) addAllowedValueForLabel(selected, label);
+        if (selected.isEmpty()) return configured;
+
+        // Keep the preference value as the default/safety baseline, but let the visible
+        // Developer Studio checkbox state add Base when the user explicitly ticks it.
+        // Other customization states still have to be enabled in the setting.
         Set<Integer> out = new HashSet<Integer>();
-        for (String label : labels) addAllowedValueForLabel(out, label);
-        if (out.isEmpty()) return allowedValues();
+        for (Integer v : selected) {
+            if (Integer.valueOf(0).equals(v) && allowManualBaseCheckbox()) out.add(v);
+            else if (configured.contains(v)) out.add(v);
+        }
+        if (out.isEmpty()) return configured;
         return out;
+    }
+
+    private static Set<Integer> allowedValuesForCurrentFilter() {
+        return allowedValuesFromCheckboxState();
     }
 
     private static Set<String> defaultCustomizationLabelsFromAllowedValues() {
@@ -1065,7 +1081,7 @@ public final class FastFormsBridge {
     private static boolean hardOverlayListFilter() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.hardOverlayListFilter", "false")); }
     private static boolean overlayGateFilter() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.overlayGateFilter", "true")); }
     private static boolean forceObjectListReject() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.forceObjectListReject", "false")); }
-    private static boolean allowManualBaseCheckbox() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.allowManualBase", "false")); }
+    private static boolean allowManualBaseCheckbox() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.allowManualBase", "true")); }
 
     private static long fastNameListCacheMillis() {
         try { return Long.parseLong(agentProperty("bmc.ds.fastForms.nameCacheMs", "3000")); }

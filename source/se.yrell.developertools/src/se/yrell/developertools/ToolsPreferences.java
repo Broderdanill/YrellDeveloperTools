@@ -147,6 +147,7 @@ public final class ToolsPreferences {
             properties.setProperty("bmc.ds.fastForms.triggerUiFilter", "false");
             properties.setProperty("bmc.ds.fastForms.overlayGateFilter", "true");
             properties.setProperty("bmc.ds.fastForms.deselectBaseCheckbox", "true");
+            properties.setProperty("bmc.ds.fastForms.allowManualBase", "true");
             FileOutputStream out = new FileOutputStream(file);
             try {
                 properties.store(out, "Yrell Developer Tools Fast object lists agent settings");
