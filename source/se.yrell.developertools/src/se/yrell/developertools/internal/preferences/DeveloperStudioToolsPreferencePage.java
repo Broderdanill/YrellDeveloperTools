@@ -15,6 +15,7 @@ import org.eclipse.ui.IWorkbenchPreferencePage;
 
 import se.yrell.developertools.ToolsActivator;
 import se.yrell.developertools.ToolsConstants;
+import se.yrell.developertools.ToolsPreferences;
 import se.yrell.developertools.keepalive.KeepAliveService;
 
 public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePage implements IWorkbenchPreferencePage {
@@ -25,7 +26,9 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
     private StringFieldEditor developerIdEditor;
     private StringFieldEditor iconCatalogUrlEditor;
     private StringFieldEditor tableColumnPatternEditor;
+    private BooleanFieldEditor fastFormsEnabledEditor;
     private StringFieldEditor fastFormsValuesEditor;
+    private BooleanFieldEditor fastFormsDebugEditor;
     private IntegerFieldEditor keepAliveIntervalEditor;
 
     public DeveloperStudioToolsPreferencePage() {
@@ -83,15 +86,17 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         addInfo(iconGroup, "Required for icon preview. Example: https://<midtier>/arsys/pwa/styles.xxxxxxx.css. The icon catalog is preloaded at startup when this URL is set.");
 
         Composite fastGroup = createGroup(parent, "Fast object lists");
-        addField(new BooleanFieldEditor(ToolsConstants.PREF_FAST_FORMS_ENABLED,
-                "Load object lists with Custom/Overlay filter by default", fastGroup));
+        fastFormsEnabledEditor = new BooleanFieldEditor(ToolsConstants.PREF_FAST_FORMS_ENABLED,
+                "Load object lists with Custom/Overlay filter by default", fastGroup);
+        addField(fastFormsEnabledEditor);
         fastFormsValuesEditor = new StringFieldEditor(ToolsConstants.PREF_FAST_FORMS_VALUES,
                 "Customization Type values", fastGroup);
         fastFormsValuesEditor.setEmptyStringAllowed(false);
         addField(fastFormsValuesEditor);
-        addField(new BooleanFieldEditor(ToolsConstants.PREF_FAST_FORMS_DEBUG,
-                "Debug logging for Fast object lists", fastGroup));
-        addInfo(fastGroup, "Default: 2,4. Values: 0=Base, 1=Overlaid, 2=Overlay, 4=Custom. The configured values are now authoritative, so Base is not accepted unless 0 is included. Restart Developer Studio with -clean after enabling/disabling because BMC list-provider classes must be woven before they are loaded.");
+        fastFormsDebugEditor = new BooleanFieldEditor(ToolsConstants.PREF_FAST_FORMS_DEBUG,
+                "Debug logging for Fast object lists", fastGroup);
+        addField(fastFormsDebugEditor);
+        addInfo(fastGroup, "Default: 2,4. Values: 0=Base, 1=Overlaid, 2=Overlay, 4=Custom. For true initial server-side filtering, start Developer Studio with the same jar as -javaagent. Without agent mode, Developer Studio may load BMC list-provider classes before this plugin can weave them.");
 
         Composite keepAliveGroup = createGroup(parent, "Keepalive");
         addField(new BooleanFieldEditor(ToolsConstants.PREF_KEEPALIVE_ENABLED,
@@ -175,6 +180,9 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         boolean ok = super.performOk();
         if (ok) {
             KeepAliveService.getInstance().reconfigure();
+            boolean fastEnabled = fastFormsEnabledEditor != null && fastFormsEnabledEditor.getBooleanValue();
+            boolean fastDebug = fastFormsDebugEditor != null && fastFormsDebugEditor.getBooleanValue();
+            ToolsPreferences.writeFastFormsAgentProperties(fastEnabled, fastValues, fastDebug);
         }
         return ok;
     }

@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Yrell Developer Tools
 Bundle-SymbolicName: se.yrell.developertools;singleton:=true
-Bundle-Version: 0.1.30
+Bundle-Version: 0.1.31
 Bundle-Vendor: Daniel Yrell
 Bundle-Activator: se.yrell.developertools.ToolsActivator
 Bundle-ActivationPolicy: lazy
@@ -12,3 +12,7 @@ Require-Bundle: org.eclipse.core.runtime,org.eclipse.ui,org.eclipse.jface,org.ec
 Import-Package: org.osgi.framework;version="1.8.0",org.osgi.framework.hooks.weaving;version="1.1.0",org.osgi.service.prefs;version="1.1.0"
 Export-Package: se.yrell.developertools.runtime
 Automatic-Module-Name: se.yrell.developertools
+Premain-Class: se.yrell.developertools.fastagent.FastFormsAgent
+Agent-Class: se.yrell.developertools.fastagent.FastFormsAgent
+Can-Redefine-Classes: false
+Can-Retransform-Classes: false

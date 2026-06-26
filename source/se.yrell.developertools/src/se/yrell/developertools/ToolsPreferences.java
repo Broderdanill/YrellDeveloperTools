@@ -1,6 +1,9 @@
 package se.yrell.developertools;
 
 import org.eclipse.core.runtime.preferences.InstanceScope;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.util.Properties;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.osgi.service.prefs.BackingStoreException;
 import org.osgi.service.prefs.Preferences;
@@ -114,6 +117,47 @@ public final class ToolsPreferences {
                 ToolsConstants.DEFAULT_FAST_FORMS_DEBUG);
     }
 
+
+
+    public static File fastFormsAgentPropertiesFile() {
+        String home = System.getProperty("user.home");
+        if (home == null || home.trim().length() == 0) {
+            return null;
+        }
+        return new File(new File(home, ".yrell-developertools"), "fastforms-agent.properties");
+    }
+
+    public static void writeFastFormsAgentProperties(boolean enabled, String values, boolean debug) {
+        File file = fastFormsAgentPropertiesFile();
+        if (file == null) {
+            Log.warn("Could not write Fast object lists agent settings because user.home is not set.");
+            return;
+        }
+        try {
+            File parent = file.getParentFile();
+            if (parent != null) {
+                parent.mkdirs();
+            }
+            Properties properties = new Properties();
+            properties.setProperty("bmc.ds.fastForms.enabled", Boolean.toString(enabled));
+            properties.setProperty("bmc.ds.fastForms.values", values == null || values.trim().length() == 0
+                    ? ToolsConstants.DEFAULT_FAST_FORMS_VALUES : values.trim());
+            properties.setProperty("bmc.ds.fastForms.debug", Boolean.toString(debug));
+            properties.setProperty("bmc.ds.fastForms.serverFilter", "true");
+            properties.setProperty("bmc.ds.fastForms.triggerUiFilter", "true");
+            properties.setProperty("bmc.ds.fastForms.overlayGateFilter", "true");
+            properties.setProperty("bmc.ds.fastForms.deselectBaseCheckbox", "true");
+            FileOutputStream out = new FileOutputStream(file);
+            try {
+                properties.store(out, "Yrell Developer Tools Fast object lists agent settings");
+            } finally {
+                out.close();
+            }
+            Log.info("Wrote Fast object lists agent settings to " + file.getAbsolutePath());
+        } catch (Throwable t) {
+            Log.error("Could not write Fast object lists agent settings to " + file.getAbsolutePath(), t);
+        }
+    }
 
     public static boolean isKeepAliveEnabled() {
         return node().getBoolean(ToolsConstants.PREF_KEEPALIVE_ENABLED,
