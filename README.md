@@ -1,4 +1,4 @@
-# Yrell Developer Tools 0.1.35
+# Yrell Developer Tools 0.1.36
 
 Developer Studio helper plugin for BMC Helix/Remedy Developer Studio.
 
@@ -15,7 +15,7 @@ The plugin is compiled as Java 17 bytecode and is intended to run on JDK 17 and 
    - `se.yrell.developertools_*.jar`
    - `se.yrell.devstudio.keepalive_*.jar`
    - old `devstudio-fastforms` agent jars if they are no longer used separately
-3. Copy `install/se.yrell.developertools_0.1.35.jar` to Developer Studio's `plugins` folder.
+3. Copy `install/se.yrell.developertools_0.1.36.jar` to Developer Studio's `plugins` folder.
 4. Start Developer Studio once with `-clean -consoleLog`.
 
 ## Fast object lists and the required Java agent step
@@ -25,13 +25,13 @@ Fast object lists can only make the initial object fetch fast if the jar is also
 Add the same jar to `DeveloperStudio.ini`, for example:
 
 ```text
--javaagent:C:\Temp\se.yrell.developertools_0.1.35.jar
+-javaagent:C:\Temp\se.yrell.developertools_0.1.36.jar
 ```
 
 or, if the path works in your installation:
 
 ```text
--javaagent:C:\Program Files\BMC Software_25_3_Beta\DeveloperStudio\plugins\se.yrell.developertools_0.1.35.jar
+-javaagent:C:\Program Files\BMC Software_25_3_Beta\DeveloperStudio\plugins\se.yrell.developertools_0.1.36.jar
 ```
 
 If the jar is only installed as a normal Eclipse plugin, Developer Studio may first load all objects and only filter the result afterwards. That can be slower than not using the feature. The Preferences page shows an IMPORTANT note and an agent-status line so this step is harder to miss.
@@ -46,13 +46,12 @@ Setting:
 
 Adds a Developer Studio view named **Object Insight**. The view follows the current selection and shows selected high-value properties without opening every `...` dialog in the standard Properties view.
 
-Initial focus:
+Initial focus is deliberately small:
 
-- field permissions
-- table-field qualification
-- table-field sort order
-- selected object runtime/name/field/database details
-- other rich property values that look useful, such as table/column/source/remote form data
+- permissions: shows the groups/permission entries for the selected object
+- table-field qualification: shows the qualification set on the selected table field
+
+Other object details are intentionally hidden for now so the panel stays clean. More values can be added later one at a time.
 
 The view is contributed to both the Developer and Editor perspectives and is intended to be stacked with/near the normal Properties view. It is also auto-opened when the setting is enabled. If Developer Studio keeps an existing old perspective layout, move the view once under Properties and the workbench should remember the placement.
 

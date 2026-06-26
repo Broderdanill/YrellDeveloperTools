@@ -35,7 +35,7 @@ public class ObjectInsightView extends ViewPart implements ISelectionListener {
         root.setLayout(new GridLayout(1, false));
 
         heading = new Label(root, SWT.WRAP);
-        heading.setText("Select a Developer Studio object to show permissions and table details.");
+        heading.setText("Select a Developer Studio object to show permissions or table qualification.");
         heading.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
 
         table = new Table(root, SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL);
@@ -103,7 +103,7 @@ public class ObjectInsightView extends ViewPart implements ISelectionListener {
             if (heading != null && !heading.isDisposed()) {
                 heading.setText(selected == null
                         ? "No object selected."
-                        : "Object insight for: " + selected.getClass().getName());
+                        : "Object Insight");
             }
         } finally {
             table.setRedraw(true);

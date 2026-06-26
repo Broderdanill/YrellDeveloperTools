@@ -5,7 +5,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -18,38 +17,28 @@ import org.eclipse.ui.views.properties.IPropertyDescriptor;
 import org.eclipse.ui.views.properties.IPropertySource;
 
 /**
- * Reflection-based collector for the selected Developer Studio object.
+ * Small, focused collector for Object Insight.
  *
- * The BMC model uses several internal classes that vary between Developer Studio
- * versions, so this class intentionally avoids compile-time dependencies on BMC
- * field/table classes. It reads the normal Eclipse property source when available
- * and supplements it with safe getter-method inspection.
+ * The panel should only show values that are otherwise hidden behind ellipsis
+ * dialogs in Developer Studio. Keep it deliberately narrow: permissions for the
+ * selected object and table qualification for selected table fields.
  */
 final class ObjectInsightCollector {
-    private static final int MAX_VALUE_LENGTH = 2000;
-    private static final int MAX_COLLECTION_ITEMS = 80;
-    private static final String[] PROPERTY_KEYWORDS = new String[] {
-            "permission", "qualification", "qual", "sort", "database", "db name", "field id", "field type",
-            "source form", "remote form", "table", "column", "display type", "enum", "label", "owner", "view"
-    };
-    private static final String[] METHOD_KEYWORDS = new String[] {
-            "permission", "qualification", "qualifier", "sort", "schema", "remote", "source", "table", "column",
-            "database", "db", "field", "view", "owner"
-    };
+    private static final int MAX_VALUE_LENGTH = 4000;
+    private static final int MAX_COLLECTION_ITEMS = 200;
 
     List<InsightRow> collect(Object selection) {
         Object target = unwrap(selection);
         if (target == null) {
-            return Collections.singletonList(new InsightRow("Selection", "Status", "No selected Developer Studio object."));
+            return Collections.singletonList(new InsightRow("Info", "Status", "No selected Developer Studio object."));
         }
 
         List<InsightRow> rows = new ArrayList<InsightRow>();
-        addBasicRows(rows, target);
-        addPropertySourceRows(rows, target);
-        addMethodRows(rows, target);
+        addPermissions(rows, target);
+        addTableQualification(rows, target);
         deduplicate(rows);
-        if (rows.size() <= 2) {
-            rows.add(new InsightRow("Selection", "Hint", "Select a form field, table field or another object in Developer Studio to show permissions and hidden property values here."));
+        if (rows.isEmpty()) {
+            rows.add(new InsightRow("Info", "Status", "No permissions or table qualification found for the selected object."));
         }
         return rows;
     }
@@ -57,14 +46,8 @@ final class ObjectInsightCollector {
     private Object unwrap(Object value) {
         Object current = value;
         for (int i = 0; i < 5 && current != null; i++) {
-            if (current instanceof IAdaptable) {
-                try {
-                    Object adapted = ((IAdaptable) current).getAdapter(IPropertySource.class);
-                    if (adapted != null && adapted != current) {
-                        return current;
-                    }
-                } catch (Throwable ignored) {
-                }
+            if (propertySource(current) != null) {
+                return current;
             }
             Object next = callFirst(current,
                     "getModel", "getModelObject", "getObject", "getItem", "getField", "getFormObject", "getData", "getElement");
@@ -76,104 +59,92 @@ final class ObjectInsightCollector {
         return current;
     }
 
-    private void addBasicRows(List<InsightRow> rows, Object target) {
-        rows.add(new InsightRow("Selection", "Runtime type", target.getClass().getName()));
-        addIfPresent(rows, "Selection", "Name", callFirst(target, "getName", "getDisplayName", "getLabel"));
-        addIfPresent(rows, "Selection", "Field ID", callFirst(target, "getFieldId", "getFieldID", "getId", "getID"));
-        addIfPresent(rows, "Selection", "Database name", callFirst(target, "getDatabaseName", "getDbName", "getDBName"));
-        addIfPresent(rows, "Selection", "Field type", callFirst(target, "getFieldType", "getType", "getDataType"));
-    }
+    private void addPermissions(List<InsightRow> rows, Object target) {
+        List<String> parts = new ArrayList<String>();
 
-    private void addPropertySourceRows(List<InsightRow> rows, Object target) {
         IPropertySource source = propertySource(target);
-        if (source == null) {
-            return;
-        }
-        IPropertyDescriptor[] descriptors;
-        try {
-            descriptors = source.getPropertyDescriptors();
-        } catch (Throwable t) {
-            rows.add(new InsightRow("Property source", "Error", shortText(t.getClass().getSimpleName() + ": " + t.getMessage())));
-            return;
-        }
-        if (descriptors == null) {
-            return;
-        }
-        for (int i = 0; i < descriptors.length; i++) {
-            IPropertyDescriptor descriptor = descriptors[i];
-            if (descriptor == null) {
-                continue;
-            }
-            String displayName = safeString(callNoArg(descriptor, "getDisplayName"));
-            String category = safeString(callNoArg(descriptor, "getCategory"));
-            String idText = safeString(descriptor.getId());
-            String searchable = (displayName + " " + category + " " + idText).toLowerCase(Locale.ROOT);
-            boolean important = containsAny(searchable, PROPERTY_KEYWORDS);
-            Object propertyValue = null;
-            boolean complex = false;
-            try {
-                propertyValue = source.getPropertyValue(descriptor.getId());
-                complex = isComplex(propertyValue);
-            } catch (Throwable t) {
-                if (important) {
-                    rows.add(new InsightRow(displayCategory(category, searchable), label(displayName, idText),
-                            shortText(t.getClass().getSimpleName() + ": " + t.getMessage())));
-                }
-                continue;
-            }
-            if (important || complexNeedsDisplay(propertyValue)) {
-                String displayCategory = displayCategory(category, searchable);
-                String attr = label(displayName, idText);
-                String value = formatValue(propertyValue, new IdentityHashMap<Object, Boolean>(), 0);
-                if (value.length() > 0) {
-                    rows.add(new InsightRow(displayCategory, attr, value));
+        if (source != null) {
+            IPropertyDescriptor[] descriptors = safeDescriptors(source);
+            if (descriptors != null) {
+                for (int i = 0; i < descriptors.length; i++) {
+                    IPropertyDescriptor descriptor = descriptors[i];
+                    if (descriptor == null || !isPermissionDescriptor(descriptor)) {
+                        continue;
+                    }
+                    Object value = safePropertyValue(source, descriptor);
+                    addFormattedLines(parts, formatPermissionValue(value, new IdentityHashMap<Object, Boolean>(), 0));
                 }
             }
+        }
+
+        Object direct = callFirst(target,
+                "getPermissions", "getPermission", "getPermissionList", "getFieldPermissions", "getAccessPermissions");
+        addFormattedLines(parts, formatPermissionValue(direct, new IdentityHashMap<Object, Boolean>(), 0));
+
+        String value = joinUnique(parts, "\n");
+        if (value.length() > 0) {
+            rows.add(new InsightRow("Permissions", "Groups", value));
         }
     }
 
-    private void addMethodRows(List<InsightRow> rows, Object target) {
-        Method[] methods;
-        try {
-            methods = target.getClass().getMethods();
-        } catch (Throwable t) {
-            return;
-        }
-        List<Method> sorted = new ArrayList<Method>();
-        for (int i = 0; i < methods.length; i++) {
-            Method method = methods[i];
-            if (method.getParameterTypes().length != 0) {
-                continue;
-            }
-            String name = method.getName();
-            if (!(name.startsWith("get") || name.startsWith("is"))) {
-                continue;
-            }
-            if ("getClass".equals(name)) {
-                continue;
-            }
-            String lower = name.toLowerCase(Locale.ROOT);
-            if (!containsAny(lower, METHOD_KEYWORDS)) {
-                continue;
-            }
-            sorted.add(method);
-        }
-        Collections.sort(sorted, new Comparator<Method>() {
-            @Override
-            public int compare(Method a, Method b) {
-                return a.getName().compareToIgnoreCase(b.getName());
-            }
-        });
-        for (int i = 0; i < sorted.size() && i < 80; i++) {
-            Method method = sorted.get(i);
-            try {
-                Object value = method.invoke(target);
-                String formatted = formatValue(value, new IdentityHashMap<Object, Boolean>(), 0);
-                if (formatted.length() > 0) {
-                    rows.add(new InsightRow(methodCategory(method.getName()), humanize(method.getName()), formatted));
+    private void addTableQualification(List<InsightRow> rows, Object target) {
+        List<String> parts = new ArrayList<String>();
+
+        IPropertySource source = propertySource(target);
+        if (source != null) {
+            IPropertyDescriptor[] descriptors = safeDescriptors(source);
+            if (descriptors != null) {
+                for (int i = 0; i < descriptors.length; i++) {
+                    IPropertyDescriptor descriptor = descriptors[i];
+                    if (descriptor == null || !isQualificationDescriptor(descriptor)) {
+                        continue;
+                    }
+                    Object value = safePropertyValue(source, descriptor);
+                    addFormattedLines(parts, formatGeneralValue(value, new IdentityHashMap<Object, Boolean>(), 0));
                 }
-            } catch (Throwable ignored) {
             }
+        }
+
+        Object direct = callFirst(target,
+                "getQualification", "getQualifier", "getTableQualification", "getTableQualifier", "getQuery");
+        addFormattedLines(parts, formatGeneralValue(direct, new IdentityHashMap<Object, Boolean>(), 0));
+
+        String value = joinUnique(parts, "\n");
+        if (value.length() > 0) {
+            rows.add(new InsightRow("Table", "Qualification", value));
+        }
+    }
+
+    private boolean isPermissionDescriptor(IPropertyDescriptor descriptor) {
+        String text = descriptorText(descriptor);
+        return contains(text, "permission");
+    }
+
+    private boolean isQualificationDescriptor(IPropertyDescriptor descriptor) {
+        String text = descriptorText(descriptor);
+        return contains(text, "qualification") || contains(text, "qualifier");
+    }
+
+    private String descriptorText(IPropertyDescriptor descriptor) {
+        String displayName = safeString(callNoArg(descriptor, "getDisplayName"));
+        String category = safeString(callNoArg(descriptor, "getCategory"));
+        String idText = safeString(descriptor.getId());
+        return (displayName + " " + category + " " + idText).toLowerCase(Locale.ROOT);
+    }
+
+    private IPropertyDescriptor[] safeDescriptors(IPropertySource source) {
+        try {
+            return source.getPropertyDescriptors();
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private Object safePropertyValue(IPropertySource source, IPropertyDescriptor descriptor) {
+        try {
+            return source.getPropertyValue(descriptor.getId());
+        } catch (Throwable ignored) {
+            return null;
         }
     }
 
@@ -190,18 +161,11 @@ final class ObjectInsightCollector {
             } catch (Throwable ignored) {
             }
         }
-        Object result = callFirst(target, "getPropertySource", "getAdapter");
+        Object result = callFirst(target, "getPropertySource");
         if (result instanceof IPropertySource) {
             return (IPropertySource) result;
         }
         return null;
-    }
-
-    private void addIfPresent(List<InsightRow> rows, String category, String attribute, Object value) {
-        String formatted = formatValue(value, new IdentityHashMap<Object, Boolean>(), 0);
-        if (formatted.length() > 0) {
-            rows.add(new InsightRow(category, attribute, formatted));
-        }
     }
 
     private Object callFirst(Object target, String... methodNames) {
@@ -230,56 +194,162 @@ final class ObjectInsightCollector {
         }
     }
 
-    private boolean containsAny(String text, String[] keywords) {
-        if (text == null) {
-            return false;
+    private String formatPermissionValue(Object value, IdentityHashMap<Object, Boolean> seen, int depth) {
+        if (value == null || depth > 5) {
+            return "";
         }
-        for (int i = 0; i < keywords.length; i++) {
-            if (text.indexOf(keywords[i]) >= 0) {
-                return true;
+        if (isSimple(value)) {
+            return shortText(String.valueOf(value));
+        }
+        if (seen.containsKey(value)) {
+            return "";
+        }
+        seen.put(value, Boolean.TRUE);
+        try {
+            Class<?> type = value.getClass();
+            if (type.isArray()) {
+                int length = Array.getLength(value);
+                List<String> lines = new ArrayList<String>();
+                for (int i = 0; i < length && i < MAX_COLLECTION_ITEMS; i++) {
+                    addFormattedLines(lines, formatPermissionValue(Array.get(value, i), seen, depth + 1));
+                }
+                if (length > MAX_COLLECTION_ITEMS) {
+                    lines.add("... +" + (length - MAX_COLLECTION_ITEMS) + " more");
+                }
+                return joinUnique(lines, "\n");
             }
+            if (value instanceof Collection) {
+                Collection<?> collection = (Collection<?>) value;
+                List<String> lines = new ArrayList<String>();
+                int count = 0;
+                for (Object item : collection) {
+                    if (count++ >= MAX_COLLECTION_ITEMS) {
+                        lines.add("... +" + (collection.size() - MAX_COLLECTION_ITEMS) + " more");
+                        break;
+                    }
+                    addFormattedLines(lines, formatPermissionValue(item, seen, depth + 1));
+                }
+                return joinUnique(lines, "\n");
+            }
+            if (value instanceof Map) {
+                Map<?, ?> map = (Map<?, ?>) value;
+                List<String> lines = new ArrayList<String>();
+                int count = 0;
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    if (count++ >= MAX_COLLECTION_ITEMS) {
+                        lines.add("... +" + (map.size() - MAX_COLLECTION_ITEMS) + " more");
+                        break;
+                    }
+                    String key = formatGeneralValue(entry.getKey(), seen, depth + 1);
+                    String val = formatGeneralValue(entry.getValue(), seen, depth + 1);
+                    if (key.length() > 0 || val.length() > 0) {
+                        lines.add(key + (val.length() > 0 ? " = " + val : ""));
+                    }
+                }
+                return joinUnique(lines, "\n");
+            }
+
+            String group = firstNonEmpty(
+                    methodText(value, "getGroupName"),
+                    methodText(value, "getGroup"),
+                    methodText(value, "getName"),
+                    methodText(value, "getGroupId"),
+                    methodText(value, "getGroupID"),
+                    methodText(value, "getGroupIDValue"));
+            String permission = firstNonEmpty(
+                    methodText(value, "getPermission"),
+                    methodText(value, "getPermissions"),
+                    methodText(value, "getAccess"),
+                    methodText(value, "getAccessRight"),
+                    methodText(value, "getType"));
+            if (group.length() > 0 || permission.length() > 0) {
+                if (group.length() == 0) {
+                    return permission;
+                }
+                if (permission.length() == 0 || group.equals(permission)) {
+                    return group;
+                }
+                return group + " = " + permission;
+            }
+            return formatGeneralValue(value, seen, depth + 1);
+        } finally {
+            seen.remove(value);
         }
-        return false;
     }
 
-    private String displayCategory(String category, String searchable) {
-        String lower = searchable == null ? "" : searchable.toLowerCase(Locale.ROOT);
-        if (lower.indexOf("permission") >= 0) {
-            return "Permissions";
+    private String formatGeneralValue(Object value, IdentityHashMap<Object, Boolean> seen, int depth) {
+        if (value == null || depth > 4) {
+            return "";
         }
-        if (lower.indexOf("qualification") >= 0 || lower.indexOf("qual") >= 0) {
-            return "Table field";
+        if (isSimple(value)) {
+            return shortText(String.valueOf(value));
         }
-        if (lower.indexOf("sort") >= 0) {
-            return "Table field";
+        if (seen.containsKey(value)) {
+            return "";
         }
-        if (category != null && category.trim().length() > 0) {
-            return category.trim();
+        seen.put(value, Boolean.TRUE);
+        try {
+            Class<?> type = value.getClass();
+            if (type.isArray()) {
+                int length = Array.getLength(value);
+                List<String> parts = new ArrayList<String>();
+                for (int i = 0; i < length && i < MAX_COLLECTION_ITEMS; i++) {
+                    addFormattedLines(parts, formatGeneralValue(Array.get(value, i), seen, depth + 1));
+                }
+                return joinUnique(parts, "\n");
+            }
+            if (value instanceof Collection) {
+                List<String> parts = new ArrayList<String>();
+                for (Object item : (Collection<?>) value) {
+                    addFormattedLines(parts, formatGeneralValue(item, seen, depth + 1));
+                }
+                return joinUnique(parts, "\n");
+            }
+            if (value instanceof Map) {
+                List<String> parts = new ArrayList<String>();
+                for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+                    String key = formatGeneralValue(entry.getKey(), seen, depth + 1);
+                    String val = formatGeneralValue(entry.getValue(), seen, depth + 1);
+                    if (key.length() > 0 || val.length() > 0) {
+                        parts.add(key + (val.length() > 0 ? " = " + val : ""));
+                    }
+                }
+                return joinUnique(parts, "\n");
+            }
+            String bean = firstNonEmpty(
+                    methodText(value, "getQualification"),
+                    methodText(value, "getQualifier"),
+                    methodText(value, "getQuery"),
+                    methodText(value, "getExpression"),
+                    methodText(value, "getValue"));
+            if (bean.length() > 0) {
+                return shortText(bean);
+            }
+            String asString = safeString(value);
+            if (asString.indexOf('@') < 0) {
+                return shortText(asString);
+            }
+            return "";
+        } finally {
+            seen.remove(value);
         }
-        return "Properties";
     }
 
-    private String methodCategory(String methodName) {
-        String lower = methodName == null ? "" : methodName.toLowerCase(Locale.ROOT);
-        if (lower.indexOf("permission") >= 0) {
-            return "Permissions";
+    private String methodText(Object value, String methodName) {
+        Object result = callNoArg(value, methodName);
+        if (result == null || result == value) {
+            return "";
         }
-        if (lower.indexOf("qualification") >= 0 || lower.indexOf("qualifier") >= 0 || lower.indexOf("sort") >= 0
-                || lower.indexOf("table") >= 0 || lower.indexOf("column") >= 0 || lower.indexOf("remote") >= 0
-                || lower.indexOf("source") >= 0) {
-            return "Table field";
-        }
-        return "Model details";
+        return formatGeneralValue(result, new IdentityHashMap<Object, Boolean>(), 0);
     }
 
-    private String label(String displayName, String idText) {
-        if (displayName != null && displayName.trim().length() > 0) {
-            return displayName.trim();
-        }
-        if (idText != null && idText.trim().length() > 0) {
-            return idText.trim();
-        }
-        return "Property";
+    private boolean isSimple(Object value) {
+        return value instanceof CharSequence || value instanceof Number || value instanceof Boolean || value instanceof Character
+                || value.getClass().isEnum();
+    }
+
+    private boolean contains(String text, String needle) {
+        return text != null && text.indexOf(needle) >= 0;
     }
 
     private String safeString(Object value) {
@@ -293,160 +363,49 @@ final class ObjectInsightCollector {
         }
     }
 
-    private boolean complexNeedsDisplay(Object value) {
-        if (value == null) {
-            return false;
-        }
-        if (!isComplex(value)) {
-            return false;
-        }
-        String className = value.getClass().getName().toLowerCase(Locale.ROOT);
-        return containsAny(className, new String[] { "permission", "qualification", "sort", "table", "column" });
-    }
-
-    private boolean isComplex(Object value) {
-        if (value == null) {
-            return false;
-        }
-        Class<?> type = value.getClass();
-        return type.isArray() || value instanceof Collection || value instanceof Map || !(value instanceof CharSequence)
-                && !(value instanceof Number) && !(value instanceof Boolean) && !(value instanceof Character)
-                && !type.isEnum();
-    }
-
-    private String formatValue(Object value, IdentityHashMap<Object, Boolean> seen, int depth) {
-        if (value == null) {
+    private String firstNonEmpty(String... values) {
+        if (values == null) {
             return "";
         }
-        if (depth > 3) {
-            return shortText(safeString(value));
-        }
-        if (value instanceof CharSequence || value instanceof Number || value instanceof Boolean || value instanceof Character
-                || value.getClass().isEnum()) {
-            return shortText(String.valueOf(value));
-        }
-        if (seen.containsKey(value)) {
-            return "<recursive>";
-        }
-        seen.put(value, Boolean.TRUE);
-        try {
-            Class<?> type = value.getClass();
-            if (type.isArray()) {
-                int length = Array.getLength(value);
-                List<String> parts = new ArrayList<String>();
-                for (int i = 0; i < length && i < MAX_COLLECTION_ITEMS; i++) {
-                    parts.add(formatValue(Array.get(value, i), seen, depth + 1));
-                }
-                if (length > MAX_COLLECTION_ITEMS) {
-                    parts.add("... +" + (length - MAX_COLLECTION_ITEMS) + " more");
-                }
-                return shortText(join(parts, "\n"));
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] != null && values[i].trim().length() > 0) {
+                return values[i].trim();
             }
-            if (value instanceof Collection) {
-                Collection<?> collection = (Collection<?>) value;
-                List<String> parts = new ArrayList<String>();
-                int count = 0;
-                for (Object item : collection) {
-                    if (count++ >= MAX_COLLECTION_ITEMS) {
-                        parts.add("... +" + (collection.size() - MAX_COLLECTION_ITEMS) + " more");
-                        break;
-                    }
-                    parts.add(formatValue(item, seen, depth + 1));
-                }
-                return shortText(join(parts, "\n"));
-            }
-            if (value instanceof Map) {
-                Map<?, ?> map = (Map<?, ?>) value;
-                List<String> parts = new ArrayList<String>();
-                int count = 0;
-                for (Map.Entry<?, ?> entry : map.entrySet()) {
-                    if (count++ >= MAX_COLLECTION_ITEMS) {
-                        parts.add("... +" + (map.size() - MAX_COLLECTION_ITEMS) + " more");
-                        break;
-                    }
-                    parts.add(formatValue(entry.getKey(), seen, depth + 1) + " = "
-                            + formatValue(entry.getValue(), seen, depth + 1));
-                }
-                return shortText(join(parts, "\n"));
-            }
-
-            String bean = formatBean(value, seen, depth);
-            if (bean.length() > 0) {
-                return shortText(bean);
-            }
-            return shortText(safeString(value));
-        } finally {
-            seen.remove(value);
-        }
-    }
-
-    private String formatBean(Object value, IdentityHashMap<Object, Boolean> seen, int depth) {
-        Set<String> preferred = new LinkedHashSet<String>();
-        preferred.add("getGroupId");
-        preferred.add("getGroupID");
-        preferred.add("getGroupName");
-        preferred.add("getPermission");
-        preferred.add("getPermissions");
-        preferred.add("getFieldId");
-        preferred.add("getFieldID");
-        preferred.add("getFieldName");
-        preferred.add("getName");
-        preferred.add("getOrder");
-        preferred.add("getSortOrder");
-        preferred.add("isDescending");
-        preferred.add("getQualification");
-        preferred.add("getQualifier");
-        preferred.add("getQuery");
-        preferred.add("getFormName");
-        preferred.add("getServerName");
-        List<String> parts = new ArrayList<String>();
-        for (String methodName : preferred) {
-            Object result = callNoArg(value, methodName);
-            String formatted = formatValue(result, seen, depth + 1);
-            if (formatted.length() > 0) {
-                parts.add(humanize(methodName) + "=" + formatted.replace('\n', ' '));
-            }
-        }
-        if (!parts.isEmpty()) {
-            return join(parts, ", ");
-        }
-        String asString = safeString(value);
-        if (asString != null && asString.length() > 0 && asString.indexOf('@') < 0) {
-            return asString;
         }
         return "";
     }
 
-    private String humanize(String methodName) {
-        String name = methodName == null ? "" : methodName;
-        if (name.startsWith("get") && name.length() > 3) {
-            name = name.substring(3);
-        } else if (name.startsWith("is") && name.length() > 2) {
-            name = name.substring(2);
+    private void addFormattedLines(List<String> target, String text) {
+        if (text == null) {
+            return;
         }
-        StringBuilder out = new StringBuilder();
-        for (int i = 0; i < name.length(); i++) {
-            char c = name.charAt(i);
-            if (i > 0 && Character.isUpperCase(c) && Character.isLowerCase(name.charAt(i - 1))) {
-                out.append(' ');
+        String[] lines = text.replace("\r\n", "\n").replace('\r', '\n').split("\n");
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i] == null ? "" : lines[i].trim();
+            if (line.length() > 0) {
+                target.add(line);
             }
-            out.append(c);
         }
-        return out.toString();
     }
 
-    private String join(List<String> parts, String separator) {
+    private String joinUnique(List<String> parts, String separator) {
+        Set<String> seen = new LinkedHashSet<String>();
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < parts.size(); i++) {
-            if (parts.get(i) == null || parts.get(i).length() == 0) {
+            String part = parts.get(i);
+            if (part == null) {
+                continue;
+            }
+            String cleaned = shortText(part);
+            if (cleaned.length() == 0 || !seen.add(cleaned)) {
                 continue;
             }
             if (out.length() > 0) {
                 out.append(separator);
             }
-            out.append(parts.get(i));
+            out.append(cleaned);
         }
-        return out.toString();
+        return shortText(out.toString());
     }
 
     private String shortText(String value) {
