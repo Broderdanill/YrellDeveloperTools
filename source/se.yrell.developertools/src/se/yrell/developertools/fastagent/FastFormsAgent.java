@@ -40,7 +40,7 @@ public final class FastFormsAgent {
     public static void premain(String args, Instrumentation inst) {
         System.setProperty("se.yrell.developertools.fastFormsAgent.active", "true");
         appendBridgeOnlyToBootstrap(inst);
-        FastFormsBridge.logAlways("loaded v9; enabled=" + FastFormsBridge.isEnabledForAgent() +
+        FastFormsBridge.logAlways("loaded v10; enabled=" + FastFormsBridge.isEnabledForAgent() +
             ", values=" + FastFormsBridge.valuesForAgent() +
             ", logFile=" + FastFormsBridge.logFilePathForAgent() +
             ", bootstrapBridge=bridge-only");
@@ -161,6 +161,12 @@ public final class FastFormsAgent {
                 && "(ILcom/bmc/arsys/api/QualifierInfo;[ILjava/util/List;)Ljava/util/List;".equals(descriptor)) {
                 patched = true;
                 return new GetEntriesMethodAdapter(api, mv, access, name, descriptor);
+            }
+            if (AR_BASE_NAMED_PROVIDER.equals(className)
+                && "getPartialObjects".equals(name)
+                && "(Ljava/util/List;JLcom/bmc/arsys/api/ObjectBaseCriteria;)Ljava/util/List;".equals(descriptor)) {
+                patched = true;
+                return new GetPartialObjectsMethodAdapter(api, mv, access, name, descriptor);
             }
             if (FORM_LIST_PROVIDER.equals(className)
                 && "getDynamicQuery".equals(name)
@@ -285,6 +291,25 @@ public final class FastFormsAgent {
             visitMethodInsn(INVOKESTATIC, BRIDGE, "augmentEntryQualifier", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;", false);
             checkCast(Type.getObjectType("com/bmc/arsys/api/QualifierInfo"));
             storeArg(1);
+        }
+    }
+
+
+    private static final class GetPartialObjectsMethodAdapter extends AdviceAdapter {
+        GetPartialObjectsMethodAdapter(int api, MethodVisitor mv, int access, String name, String descriptor) { super(api, mv, access, name, descriptor); }
+        @Override protected void onMethodEnter() {
+            loadThis();
+            loadArg(0);
+            loadArg(1);
+            loadArg(2);
+            visitMethodInsn(INVOKESTATIC, BRIDGE, "getPartialObjectsWithServerCustomizationFilter", "(Ljava/lang/Object;Ljava/lang/Object;JLjava/lang/Object;)Ljava/lang/Object;", false);
+            dup();
+            Label cont = new Label();
+            visitJumpInsn(IFNULL, cont);
+            checkCast(Type.getObjectType("java/util/List"));
+            returnValue();
+            visitLabel(cont);
+            pop();
         }
     }
 

@@ -11,13 +11,19 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
+import java.util.WeakHashMap;
 import java.util.Set;
 
 /** Helper methods called from transformed BMC classes. This class is made visible to BMC class loaders via bootstrap append. */
 public final class FastFormsBridge {
     private static final int OVERLAY_PROP_FIELD_ID = 30086;
+    private static final int OBJECT_OVERLAY_PROP_ID = 90015;
     private static final int AR_REL_OP_EQUAL = 1;
     private static final int AR_COND_OP_AND = 1;
     private static final int AR_COND_OP_OR = 2;
@@ -25,6 +31,19 @@ public final class FastFormsBridge {
     private static volatile Set<String> lastCustomizationCheckboxLabels = null;
     private static volatile long overlayGateRejectLogCount = 0L;
     private static volatile long diagnosticsLogCount = 0L;
+
+    private static final Map<Object, Long> scheduledFilterTriggers = Collections.synchronizedMap(new WeakHashMap<Object, Long>());
+    private static final Map<Object, Boolean> regularQueriesAlreadyFiltered = Collections.synchronizedMap(new WeakHashMap<Object, Boolean>());
+    private static final Map<String, NameListCacheEntry> nameListCache = Collections.synchronizedMap(new LinkedHashMap<String, NameListCacheEntry>(64, 0.75f, true) {
+        private static final long serialVersionUID = 1L;
+        @Override protected boolean removeEldestEntry(Map.Entry<String, NameListCacheEntry> eldest) { return size() > 64; }
+    });
+
+    private static final class NameListCacheEntry {
+        final long createdAt;
+        final List names;
+        NameListCacheEntry(long createdAt, List names) { this.createdAt = createdAt; this.names = names; }
+    }
 
     private FastFormsBridge() {}
 
@@ -118,9 +137,23 @@ public final class FastFormsBridge {
                 return;
             }
             trigger.setAccessible(true);
+
+            long now = System.currentTimeMillis();
+            synchronized (scheduledFilterTriggers) {
+                Long next = scheduledFilterTriggers.get(objectListView);
+                if (next != null && next.longValue() > now) {
+                    debug("coalesced duplicate UI filter trigger for " + safeClassName(objectListView));
+                    return;
+                }
+                scheduledFilterTriggers.put(objectListView, Long.valueOf(now + 500L));
+            }
+
             final Runnable r = new Runnable() {
                 @Override public void run() {
                     try {
+                        synchronized (scheduledFilterTriggers) {
+                            scheduledFilterTriggers.remove(objectListView);
+                        }
                         trigger.invoke(objectListView);
                         debug("triggered UI checkbox filtering for " + safeClassName(objectListView));
                     } catch (Throwable t) {
@@ -132,12 +165,9 @@ public final class FastFormsBridge {
             Class<?> displayClass = Class.forName("org.eclipse.swt.widgets.Display", false, cl);
             Object display = displayClass.getMethod("getDefault").invoke(null);
             if (display != null) {
-                displayClass.getMethod("asyncExec", Runnable.class).invoke(display, r);
-                // v6: FilteringSection was often constructed before a single-list viewer existed.
-                // Also schedule two delayed passes after createTypeListContent/createFormListContent so
-                // the custom checkbox filter is installed after the ObjectListComponent has items.
-                try { displayClass.getMethod("timerExec", int.class, Runnable.class).invoke(display, 250, r); } catch (Throwable ignored) {}
-                try { displayClass.getMethod("timerExec", int.class, Runnable.class).invoke(display, 1000, r); } catch (Throwable ignored) {}
+                // One delayed pass is enough. Older versions scheduled async+250+1000ms,
+                // which made large object lists feel as if several searches were started.
+                displayClass.getMethod("timerExec", int.class, Runnable.class).invoke(display, 500, r);
             } else {
                 r.run();
             }
@@ -363,6 +393,10 @@ public final class FastFormsBridge {
     /** Called from ARDynamicNamedListProvider/FormListProvider when a RegularQuery has just been built. */
     public static void applyOverlayFilterToRegularQuery(Object provider, Object regularQuery) {
         if (!isEnabled() || !serverFilter() || regularQuery == null) return;
+        if (!markRegularQueryForFiltering(regularQuery)) {
+            debug("RegularQuery overlay/custom filter already applied for " + safeClassName(provider));
+            return;
+        }
         Set<Integer> values = allowedValues();
         if (values.contains(0)) {
             debug("base included; not applying RegularQuery filter");
@@ -402,6 +436,15 @@ public final class FastFormsBridge {
         }
     }
 
+
+    private static boolean markRegularQueryForFiltering(Object regularQuery) {
+        synchronized (regularQueriesAlreadyFiltered) {
+            if (regularQueriesAlreadyFiltered.containsKey(regularQuery)) return false;
+            regularQueriesAlreadyFiltered.put(regularQuery, Boolean.TRUE);
+            return true;
+        }
+    }
+
     /** Called from ARBaseNamedListProvider.getEntries(...). */
     public static Object augmentEntryQualifier(Object provider, Object qualifier) {
         if (!isEnabled() || !serverFilter()) return qualifier;
@@ -427,6 +470,212 @@ public final class FastFormsBridge {
         }
     }
 
+
+    /**
+     * Called from ARBaseNamedListProvider.getPartialObjects(...). This is the important fast path
+     * for object-list providers such as Active Links, Filters and Escalations. Without this hook
+     * Developer Studio can first ask the server for every object and only filter the UI afterwards.
+     * Here we ask the server for names matching the configured object-property overlay values first
+     * and then load partial objects only for those names.
+     */
+    public static Object getPartialObjectsWithServerCustomizationFilter(Object provider, Object existingNameList, long since, Object criteria) {
+        if (!isEnabled() || !serverFilter()) return null;
+        Set<Integer> values = allowedValues();
+        if (values.contains(Integer.valueOf(0))) return null;
+        if (!isCustomizableProvider(provider)) return null;
+
+        try {
+            Object store = invokeNoArg(provider, "getStore");
+            Object type = invokeNoArg(provider, "getType");
+            if (store == null || type == null) return null;
+
+            List filteredNames = getNamesByObjectPropertyMap(provider, store, type, since, values);
+            if (filteredNames == null) return null;
+
+            if (existingNameList instanceof List && !((List) existingNameList).isEmpty()) {
+                filteredNames = intersectPreservingOrder(filteredNames, (List) existingNameList);
+            }
+
+            if (filteredNames.isEmpty()) {
+                logAlways("server-side Fast object list filter used for " + safeClassName(provider) +
+                          ": names=0, values=" + values);
+                return new ArrayList();
+            }
+
+            Method partial = findGetPartialObjectListMethod(store.getClass(), type, criteria);
+            if (partial == null) {
+                debug("getPartialObjectList method not found on " + safeClassName(store));
+                return null;
+            }
+            partial.setAccessible(true);
+            Object result = partial.invoke(store, type, filteredNames, Long.valueOf(since), criteria);
+            if (result != null) {
+                logAlways("server-side Fast object list filter used for " + safeClassName(provider) +
+                          ": names=" + filteredNames.size() + ", values=" + values);
+                return result;
+            }
+            return null;
+        } catch (Throwable t) {
+            logAlways("could not run server-side Fast object list filter for " + safeClassName(provider) + ": " + t);
+            if (isDebug()) writeStack(t);
+            return null;
+        }
+    }
+
+    private static List getNamesByObjectPropertyMap(Object provider, Object store, Object type, long since, Set<Integer> values) throws Exception {
+        String cacheKey = nameListCacheKey(store, type, since, values);
+        long now = System.currentTimeMillis();
+        long ttl = fastNameListCacheMillis();
+        if (ttl > 0) {
+            synchronized (nameListCache) {
+                NameListCacheEntry cached = nameListCache.get(cacheKey);
+                if (cached != null && now - cached.createdAt <= ttl) {
+                    debug("reused Fast object list name cache for " + safeTypeName(type) + ": names=" + cached.names.size() + ", values=" + values);
+                    return new ArrayList(cached.names);
+                }
+            }
+        }
+
+        LinkedHashSet out = new LinkedHashSet();
+        ClassLoader cl = store.getClass().getClassLoader();
+        if (cl == null && provider != null) cl = provider.getClass().getClassLoader();
+        for (Integer v : values) {
+            Object props = buildObjectPropertyMap(cl, v.intValue());
+            List raw = invokeNameListWithObjectPropertyMap(provider, store, type, since, props);
+            if (raw instanceof Iterable) {
+                for (Object name : (Iterable) raw) {
+                    if (name != null) out.add(name);
+                }
+            }
+        }
+        ArrayList result = new ArrayList(out);
+        if (ttl > 0) {
+            synchronized (nameListCache) {
+                nameListCache.put(cacheKey, new NameListCacheEntry(now, new ArrayList(result)));
+            }
+        }
+        return result;
+    }
+
+    private static List invokeNameListWithObjectPropertyMap(Object provider, Object store, Object type, long since, Object props) throws Exception {
+        List fromStore = tryInvokeStoreNameListWithObjectPropertyMap(store, type, since, props);
+        if (fromStore != null) return fromStore;
+
+        // Fallback to ARBaseNamedListProvider's private helper. It knows whether the provider is
+        // container/dependent/menu/form based, but it uses since=0 internally. This is still much
+        // better than loading every object and then filtering in the UI.
+        Method m = findMethod(provider.getClass(), "getNameList", props.getClass());
+        if (m != null) {
+            m.setAccessible(true);
+            Object raw = m.invoke(provider, props);
+            return asList(raw);
+        }
+        return null;
+    }
+
+    private static List tryInvokeStoreNameListWithObjectPropertyMap(Object store, Object type, long since, Object props) throws Exception {
+        Method[] methods = store.getClass().getMethods();
+        for (int pass = 0; pass < 2; pass++) {
+            for (Method m : methods) {
+                if (!"getNameList".equals(m.getName())) continue;
+                Class<?>[] p = m.getParameterTypes();
+                if (p.length == 0 || !p[p.length - 1].getName().equals("com.bmc.arsys.api.ObjectPropertyMap")) continue;
+                try {
+                    Object raw = null;
+                    if (p.length == 4 && p[1] == String.class && (p[2] == Long.TYPE || p[2] == Long.class)) {
+                        raw = m.invoke(store, type, null, Long.valueOf(since), props);
+                    } else if (p.length == 4 && java.util.List.class.isAssignableFrom(p[1]) && (p[2] == Long.TYPE || p[2] == Long.class)) {
+                        raw = m.invoke(store, type, null, Long.valueOf(since), props);
+                    } else if (p.length == 5 && (p[1] == Long.TYPE || p[1] == Long.class)
+                               && java.util.List.class.isAssignableFrom(p[2]) && java.util.List.class.isAssignableFrom(p[3])) {
+                        raw = m.invoke(store, type, Long.valueOf(since), null, null, props);
+                    } else if (p.length == 6 && (p[1] == Long.TYPE || p[1] == Long.class) && p[2].isArray()
+                               && (p[3] == Boolean.TYPE || p[3] == Boolean.class)) {
+                        raw = m.invoke(store, type, Long.valueOf(since), new int[] { 1 }, Boolean.TRUE, null, props);
+                    } else if (p.length == 6 && (p[1] == Long.TYPE || p[1] == Long.class)
+                               && (p[2] == Integer.TYPE || p[2] == Integer.class) && p[3] == String.class && p[4].isArray()) {
+                        raw = m.invoke(store, type, Long.valueOf(since), Integer.valueOf(1024), null, null, props);
+                    }
+                    List list = asList(raw);
+                    if (list != null) return list;
+                } catch (IllegalArgumentException ignored) {
+                    // Try the next overload.
+                }
+            }
+            methods = store.getClass().getDeclaredMethods();
+            for (Method m : methods) m.setAccessible(true);
+        }
+        return null;
+    }
+
+    private static List asList(Object raw) {
+        if (raw == null) return null;
+        if (raw instanceof List) return (List) raw;
+        if (raw instanceof Iterable) {
+            ArrayList out = new ArrayList();
+            for (Object o : (Iterable) raw) out.add(o);
+            return out;
+        }
+        return null;
+    }
+
+    private static Object buildObjectPropertyMap(ClassLoader cl, int overlayValue) throws Exception {
+        Class<?> mapClass = Class.forName("com.bmc.arsys.api.ObjectPropertyMap", false, cl);
+        Class<?> valueClass = Class.forName("com.bmc.arsys.api.Value", false, cl);
+        Object map = mapClass.getConstructor().newInstance();
+        Object value = valueClass.getConstructor(int.class).newInstance(overlayValue);
+        Method put = findMethod(mapClass, "put", Object.class, Object.class);
+        if (put == null) put = findMethodByName(mapClass, "put", 2);
+        if (put == null) throw new NoSuchMethodException("ObjectPropertyMap.put");
+        put.setAccessible(true);
+        put.invoke(map, Integer.valueOf(OBJECT_OVERLAY_PROP_ID), value);
+        return map;
+    }
+
+    private static List intersectPreservingOrder(List filteredNames, List existingNames) {
+        try {
+            HashSet existing = new HashSet(existingNames);
+            ArrayList out = new ArrayList(filteredNames.size());
+            for (Object name : filteredNames) if (existing.contains(name)) out.add(name);
+            return out;
+        } catch (Throwable t) {
+            return filteredNames;
+        }
+    }
+
+    private static Method findGetPartialObjectListMethod(Class<?> storeClass, Object type, Object criteria) {
+        for (Class<?> c = storeClass; c != null; c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                if (isGetPartialObjectListMethod(m)) return m;
+            }
+        }
+        for (Method m : storeClass.getMethods()) {
+            if (isGetPartialObjectListMethod(m)) return m;
+        }
+        return null;
+    }
+
+    private static boolean isGetPartialObjectListMethod(Method m) {
+        if (!"getPartialObjectList".equals(m.getName())) return false;
+        Class<?>[] p = m.getParameterTypes();
+        return p.length == 4
+            && java.util.List.class.isAssignableFrom(p[1])
+            && (p[2] == Long.TYPE || p[2] == Long.class)
+            && p[3].getName().equals("com.bmc.arsys.api.ObjectBaseCriteria");
+    }
+
+    private static String nameListCacheKey(Object store, Object type, long since, Set<Integer> values) {
+        return System.identityHashCode(store) + "|" + safeTypeName(type) + "|" + since + "|" + values.toString();
+    }
+
+    private static String safeTypeName(Object type) {
+        if (type == null) return "<null>";
+        try {
+            Object name = invokeNoArg(type, "getName");
+            if (name != null) return String.valueOf(name);
+        } catch (Throwable ignored) {}
+        return String.valueOf(type);
+    }
 
     public static String filterOverlaySql(String sql, Object store, String alias, String objectName) {
         if (!isEnabled() || !serverFilter() || sql == null) return sql;
@@ -816,7 +1065,12 @@ public final class FastFormsBridge {
     private static boolean hardOverlayListFilter() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.hardOverlayListFilter", "false")); }
     private static boolean overlayGateFilter() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.overlayGateFilter", "true")); }
     private static boolean forceObjectListReject() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.forceObjectListReject", "false")); }
-    private static boolean allowManualBaseCheckbox() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.allowManualBase", "true")); }
+    private static boolean allowManualBaseCheckbox() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.allowManualBase", "false")); }
+
+    private static long fastNameListCacheMillis() {
+        try { return Long.parseLong(agentProperty("bmc.ds.fastForms.nameCacheMs", "3000")); }
+        catch (Throwable t) { return 3000L; }
+    }
 
     private static Set<Integer> allowedValues() {
         String raw = agentProperty("bmc.ds.fastForms.values", "2,4");
