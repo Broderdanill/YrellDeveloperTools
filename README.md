@@ -1,4 +1,4 @@
-# Yrell Developer Tools 0.1.33
+# Yrell Developer Tools 0.1.34
 
 Developer Studio helper plugin for BMC Helix/Remedy Developer Studio.
 
@@ -15,7 +15,7 @@ The plugin is compiled as Java 17 bytecode and is intended to run on JDK 17 and 
    - `se.yrell.developertools_*.jar`
    - `se.yrell.devstudio.keepalive_*.jar`
    - old `devstudio-fastforms` agent jars if they are no longer used separately
-3. Copy `install/se.yrell.developertools_0.1.33.jar` to Developer Studio's `plugins` folder.
+3. Copy `install/se.yrell.developertools_0.1.34.jar` to Developer Studio's `plugins` folder.
 4. Start Developer Studio once with `-clean -consoleLog`.
 
 ## Fast object lists and the required Java agent step
@@ -25,13 +25,13 @@ Fast object lists can only make the initial object fetch fast if the jar is also
 Add the same jar to `DeveloperStudio.ini`, for example:
 
 ```text
--javaagent:C:\Temp\se.yrell.developertools_0.1.33.jar
+-javaagent:C:\Temp\se.yrell.developertools_0.1.34.jar
 ```
 
 or, if the path works in your installation:
 
 ```text
--javaagent:C:\Program Files\BMC Software_25_3_Beta\DeveloperStudio\plugins\se.yrell.developertools_0.1.33.jar
+-javaagent:C:\Program Files\BMC Software_25_3_Beta\DeveloperStudio\plugins\se.yrell.developertools_0.1.34.jar
 ```
 
 If the jar is only installed as a normal Eclipse plugin, Developer Studio may first load all objects and only filter the result afterwards. That can be slower than not using the feature. The Preferences page now shows an IMPORTANT note and an agent-status line so this step is harder to miss.
@@ -136,4 +136,4 @@ Keepalive can reduce idle-session problems, but it is not a full fix for every h
 
 ## Preference validation note
 
-Version 0.1.33 fixes the Preferences page so conditional fields such as CSS URL, Fast object values, table-column pattern and keepalive interval do not make the whole page invalid while their corresponding feature is disabled. The values are still validated when the feature is enabled and Apply/OK is pressed.
+Version 0.1.34 fixes the Preferences page runtime error caused by compiling SWT Group.setLayout against the wrong stub signature. The Preferences page now uses the SWT Layout signature expected by Developer Studio, so the page can open again. Conditional fields are still validated only when their corresponding feature is enabled.

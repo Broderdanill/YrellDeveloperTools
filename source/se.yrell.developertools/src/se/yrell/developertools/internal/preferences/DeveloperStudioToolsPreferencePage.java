@@ -108,7 +108,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         fastFormsDebugEditor = new BooleanFieldEditor(ToolsConstants.PREF_FAST_FORMS_DEBUG,
                 "Debug logging for Fast object lists", fastGroup);
         addField(fastFormsDebugEditor);
-        addImportant(fastGroup, "IMPORTANT: Fast object lists only becomes truly fast when the jar is also loaded as a Java agent before Developer Studio loads BMC list classes. Without -javaagent, Developer Studio can first load all objects and only filter afterwards, which can be slower. Add this line to DeveloperStudio.ini, restart with -clean, then enable this feature:\n-javaagent:<path-to-plugins>/se.yrell.developertools_0.1.33.jar");
+        addImportant(fastGroup, "IMPORTANT: Fast object lists only becomes truly fast when the jar is also loaded as a Java agent before Developer Studio loads BMC list classes. Without -javaagent, Developer Studio can first load all objects and only filter afterwards, which can be slower. Add this line to DeveloperStudio.ini, restart with -clean, then enable this feature:\n-javaagent:<path-to-plugins>/se.yrell.developertools_0.1.34.jar");
         fastFormsAgentStatusLabel = addInfo(fastGroup, fastFormsAgentStatusText());
         addCopyAgentButton(fastGroup);
 
@@ -198,7 +198,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         } catch (Throwable ignored) {
             // Fall through to generic example.
         }
-        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.33.jar";
+        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.34.jar";
     }
 
     @Override
