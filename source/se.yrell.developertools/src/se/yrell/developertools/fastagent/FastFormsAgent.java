@@ -38,6 +38,7 @@ public final class FastFormsAgent {
     private static final java.util.List<JarFile> BOOTSTRAP_JARS = new java.util.ArrayList<JarFile>();
 
     public static void premain(String args, Instrumentation inst) {
+        System.setProperty("se.yrell.developertools.fastFormsAgent.active", "true");
         appendBridgeOnlyToBootstrap(inst);
         FastFormsBridge.logAlways("loaded v8; enabled=" + FastFormsBridge.isEnabledForAgent() +
             ", values=" + System.getProperty("bmc.ds.fastForms.values", "2,4") +

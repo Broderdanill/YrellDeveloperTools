@@ -10,6 +10,12 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Group;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.dnd.Clipboard;
+import org.eclipse.swt.dnd.TextTransfer;
+import org.eclipse.swt.dnd.Transfer;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 
@@ -24,9 +30,12 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
 
     private BooleanFieldEditor autoFieldEnabledEditor;
     private StringFieldEditor developerIdEditor;
+    private BooleanFieldEditor defaultTableColumnsEnabledEditor;
     private StringFieldEditor iconCatalogUrlEditor;
+    private BooleanFieldEditor iconHelperEnabledEditor;
     private StringFieldEditor tableColumnPatternEditor;
     private BooleanFieldEditor fastFormsEnabledEditor;
+    private Label fastFormsAgentStatusLabel;
     private StringFieldEditor fastFormsValuesEditor;
     private BooleanFieldEditor fastFormsDebugEditor;
     private IntegerFieldEditor keepAliveIntervalEditor;
@@ -37,7 +46,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         if (activator != null) {
             setPreferenceStore(activator.getPreferenceStore());
         }
-        setDescription("Developer Studio helper tools for BMC suffix cleanup, default naming, automatic field IDs and CSS-based PWA icon selection.");
+        setDescription("Developer Studio helper tools. All features are disabled by default and must be enabled explicitly.");
     }
 
     @Override
@@ -55,8 +64,9 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         addInfo(suffixGroup, "Removes BMC's automatic __c only while new forms/default fields or new fields are created. It does not run post-save cleanup and does not rename existing saved fields.");
 
         Composite namingGroup = createGroup(parent, "Default naming");
-        addField(new BooleanFieldEditor(ToolsConstants.PREF_DEFAULT_NAMES_TABLE_COLUMN_DB_NAME_ENABLED,
-                "Table columns: set database name automatically", namingGroup));
+        defaultTableColumnsEnabledEditor = new BooleanFieldEditor(ToolsConstants.PREF_DEFAULT_NAMES_TABLE_COLUMN_DB_NAME_ENABLED,
+                "Table columns: set database name automatically", namingGroup);
+        addField(defaultTableColumnsEnabledEditor);
         tableColumnPatternEditor = new StringFieldEditor(ToolsConstants.PREF_DEFAULT_NAMES_TABLE_COLUMN_DB_NAME_PATTERN,
                 "Table column pattern", namingGroup);
         tableColumnPatternEditor.setEmptyStringAllowed(false);
@@ -77,8 +87,9 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         addInfo(fieldIdGroup, "Field ID format: <Developer ID><YY><MM><DD><NN>, for example 1226062301. The plugin calculates the next unused value for the current day from AR System Metadata: field and rolls to the next day if needed.");
 
         Composite iconGroup = createGroup(parent, "PWA icon helper");
-        addField(new BooleanFieldEditor(ToolsConstants.PREF_PWA_ICON_HELPER_ENABLED,
-                "Show icon picker button next to Icon properties", iconGroup));
+        iconHelperEnabledEditor = new BooleanFieldEditor(ToolsConstants.PREF_PWA_ICON_HELPER_ENABLED,
+                "Show icon picker button next to Icon properties", iconGroup);
+        addField(iconHelperEnabledEditor);
         iconCatalogUrlEditor = new StringFieldEditor(ToolsConstants.PREF_PWA_ICON_CATALOG_URL,
                 "CSS icon catalog URL", iconGroup);
         iconCatalogUrlEditor.setEmptyStringAllowed(false);
@@ -96,7 +107,9 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         fastFormsDebugEditor = new BooleanFieldEditor(ToolsConstants.PREF_FAST_FORMS_DEBUG,
                 "Debug logging for Fast object lists", fastGroup);
         addField(fastFormsDebugEditor);
-        addInfo(fastGroup, "Default: 2,4. Values: 0=Base, 1=Overlaid, 2=Overlay, 4=Custom. For true initial server-side filtering, start Developer Studio with the same jar as -javaagent. Without agent mode, Developer Studio may load BMC list-provider classes before this plugin can weave them.");
+        addImportant(fastGroup, "IMPORTANT: Fast object lists only becomes truly fast when the jar is also loaded as a Java agent before Developer Studio loads BMC list classes. Without -javaagent, Developer Studio can first load all objects and only filter afterwards, which can be slower. Add this line to DeveloperStudio.ini, restart with -clean, then enable this feature:\n-javaagent:<path-to-plugins>/se.yrell.developertools_0.1.32.jar");
+        fastFormsAgentStatusLabel = addInfo(fastGroup, fastFormsAgentStatusText());
+        addCopyAgentButton(fastGroup);
 
         Composite keepAliveGroup = createGroup(parent, "Keepalive");
         addField(new BooleanFieldEditor(ToolsConstants.PREF_KEEPALIVE_ENABLED,
@@ -119,13 +132,72 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         return group;
     }
 
-    private void addInfo(Composite parent, String text) {
+    private Label addInfo(Composite parent, String text) {
         Label label = new Label(parent, SWT.WRAP);
         label.setText(text);
         GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
-        data.widthHint = 760;
+        data.widthHint = 900;
         data.verticalIndent = 2;
         label.setLayoutData(data);
+        return label;
+    }
+
+    private Label addImportant(Composite parent, String text) {
+        Label label = new Label(parent, SWT.WRAP);
+        label.setText(text);
+        GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
+        data.widthHint = 900;
+        data.verticalIndent = 4;
+        label.setLayoutData(data);
+        return label;
+    }
+
+    private void addCopyAgentButton(Composite parent) {
+        Button button = new Button(parent, SWT.PUSH);
+        button.setText("Copy suggested -javaagent line");
+        GridData data = new GridData(SWT.LEFT, SWT.CENTER, false, false, 2, 1);
+        button.setLayoutData(data);
+        button.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                Clipboard clipboard = new Clipboard(getShell().getDisplay());
+                try {
+                    clipboard.setContents(new Object[] { suggestedJavaAgentLine() }, new Transfer[] { TextTransfer.getInstance() });
+                    MessageDialog.openInformation(getShell(), "Yrell Developer Tools", "Suggested -javaagent line copied to clipboard. Add it to DeveloperStudio.ini, then restart Developer Studio with -clean.");
+                } finally {
+                    clipboard.dispose();
+                }
+            }
+        });
+    }
+
+    private String fastFormsAgentStatusText() {
+        boolean active = Boolean.parseBoolean(System.getProperty("se.yrell.developertools.fastFormsAgent.active", "false"));
+        if (active) {
+            return "Fast object lists agent status: ACTIVE. Initial server-side object list filtering can be applied after restart with this feature enabled.";
+        }
+        return "Fast object lists agent status: NOT ACTIVE. The checkbox can still write agent settings, but true initial server-side filtering will not happen until Developer Studio is started with -javaagent.";
+    }
+
+    private String suggestedJavaAgentLine() {
+        try {
+            ToolsActivator activator = ToolsActivator.getDefault();
+            if (activator != null && activator.getBundle() != null) {
+                String location = activator.getBundle().getLocation();
+                String path = location;
+                if (path.startsWith("reference:")) {
+                    path = path.substring("reference:".length());
+                }
+                if (path.startsWith("file:/")) {
+                    java.net.URI uri = java.net.URI.create(path);
+                    path = new java.io.File(uri).getAbsolutePath();
+                }
+                return "-javaagent:" + path;
+            }
+        } catch (Throwable ignored) {
+            // Fall through to generic example.
+        }
+        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.32.jar";
     }
 
     @Override
@@ -140,19 +212,21 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         }
 
         String pattern = tableColumnPatternEditor == null ? "" : tableColumnPatternEditor.getStringValue().trim();
-        if (pattern.length() == 0) {
+        boolean defaultNamingEnabled = defaultTableColumnsEnabledEditor != null && defaultTableColumnsEnabledEditor.getBooleanValue();
+        if (defaultNamingEnabled && pattern.length() == 0) {
             MessageDialog.openError(getShell(), "Yrell Developer Tools",
-                    "Table column pattern cannot be empty. Example: col_{remote_form}_{remote_field_name}");
+                    "Table column pattern cannot be empty when table-column default naming is enabled. Example: col_{remote_form}_{remote_field_name}");
             return false;
         }
 
         String cssUrl = iconCatalogUrlEditor == null ? "" : iconCatalogUrlEditor.getStringValue().trim();
-        if (cssUrl.length() == 0) {
+        boolean iconHelperEnabled = iconHelperEnabledEditor != null && iconHelperEnabledEditor.getBooleanValue();
+        if (iconHelperEnabled && cssUrl.length() == 0) {
             MessageDialog.openError(getShell(), "Yrell Developer Tools",
-                    "CSS icon catalog URL is required for the PWA icon helper.\n\nExample:\nhttps://<midtier>/arsys/pwa/styles.xxxxxxx.css");
+                    "CSS icon catalog URL is required when the PWA icon helper is enabled.\n\nExample:\nhttps://<midtier>/arsys/pwa/styles.xxxxxxx.css");
             return false;
         }
-        if (!looksLikeUrl(cssUrl)) {
+        if (iconHelperEnabled && !looksLikeUrl(cssUrl)) {
             MessageDialog.openError(getShell(), "Yrell Developer Tools",
                     "CSS icon catalog must be an http:// or https:// URL.\n\nExample:\nhttps://<midtier>/arsys/pwa/styles.xxxxxxx.css");
             return false;
@@ -160,9 +234,10 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
 
 
         String fastValues = fastFormsValuesEditor == null ? "" : fastFormsValuesEditor.getStringValue().trim();
-        if (!isValidFastFormsValues(fastValues)) {
+        boolean fastEnabledForValidation = fastFormsEnabledEditor != null && fastFormsEnabledEditor.getBooleanValue();
+        if (fastEnabledForValidation && !isValidFastFormsValues(fastValues)) {
             MessageDialog.openError(getShell(), "Yrell Developer Tools",
-                    "Customization Type values must be a comma-separated list using 0, 1, 2 and/or 4.\n\nExample: 2,4");
+                    "Customization Type values must be a comma-separated list using 0, 1, 2 and/or 4 when Fast object lists is enabled.\n\nExample: 2,4");
             return false;
         }
 
@@ -183,6 +258,10 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
             boolean fastEnabled = fastFormsEnabledEditor != null && fastFormsEnabledEditor.getBooleanValue();
             boolean fastDebug = fastFormsDebugEditor != null && fastFormsDebugEditor.getBooleanValue();
             ToolsPreferences.writeFastFormsAgentProperties(fastEnabled, fastValues, fastDebug);
+            if (fastFormsAgentStatusLabel != null && !fastFormsAgentStatusLabel.isDisposed()) {
+                fastFormsAgentStatusLabel.setText(fastFormsAgentStatusText());
+                fastFormsAgentStatusLabel.getParent().layout(true, true);
+            }
         }
         return ok;
     }

@@ -32,18 +32,18 @@ public final class ToolsConstants {
     public static final String PREF_KEEPALIVE_ENABLED = "keepAlive.enabled";
     public static final String PREF_KEEPALIVE_INTERVAL_SECONDS = "keepAlive.intervalSeconds";
 
-    public static final boolean DEFAULT_REMOVE_CUSTOM_SUFFIX_ENABLED = true;
-    public static final boolean DEFAULT_REMOVE_CUSTOM_SUFFIX_UI_FILTER = true;
+    public static final boolean DEFAULT_REMOVE_CUSTOM_SUFFIX_ENABLED = false;
+    public static final boolean DEFAULT_REMOVE_CUSTOM_SUFFIX_UI_FILTER = false;
     public static final boolean DEFAULT_REMOVE_CUSTOM_SUFFIX_POST_SAVE_CLEANUP = false;
 
-    public static final boolean DEFAULT_DEFAULT_NAMES_TABLE_COLUMN_DB_NAME_ENABLED = true;
+    public static final boolean DEFAULT_DEFAULT_NAMES_TABLE_COLUMN_DB_NAME_ENABLED = false;
     public static final String DEFAULT_DEFAULT_NAMES_TABLE_COLUMN_DB_NAME_PATTERN = "col_{remote_form}_{remote_field_name}";
 
     public static final boolean DEFAULT_AUTO_FIELD_ID_ENABLED = false;
-    public static final boolean DEFAULT_AUTO_FIELD_ID_SKIP_PANELS = true;
+    public static final boolean DEFAULT_AUTO_FIELD_ID_SKIP_PANELS = false;
     public static final boolean DEFAULT_AUTO_FIELD_ID_SERVER_WIDE_UNIQUENESS = false;
 
-    public static final boolean DEFAULT_PWA_ICON_HELPER_ENABLED = true;
+    public static final boolean DEFAULT_PWA_ICON_HELPER_ENABLED = false;
 
     public static final boolean DEFAULT_FAST_FORMS_ENABLED = false;
     /** Default values: 2=Overlay, 4=Custom. */
