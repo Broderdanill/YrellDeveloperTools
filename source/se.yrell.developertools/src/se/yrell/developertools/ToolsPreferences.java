@@ -144,7 +144,7 @@ public final class ToolsPreferences {
                     ? ToolsConstants.DEFAULT_FAST_FORMS_VALUES : values.trim());
             properties.setProperty("bmc.ds.fastForms.debug", Boolean.toString(debug));
             properties.setProperty("bmc.ds.fastForms.serverFilter", "true");
-            properties.setProperty("bmc.ds.fastForms.triggerUiFilter", "true");
+            properties.setProperty("bmc.ds.fastForms.triggerUiFilter", "false");
             properties.setProperty("bmc.ds.fastForms.overlayGateFilter", "true");
             properties.setProperty("bmc.ds.fastForms.deselectBaseCheckbox", "true");
             FileOutputStream out = new FileOutputStream(file);

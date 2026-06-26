@@ -1058,7 +1058,7 @@ public final class FastFormsBridge {
 
     private static boolean isEnabled() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.enabled", "false")); }
     private static boolean isDebug() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.debug", "false")); }
-    private static boolean triggerUiFilter() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.triggerUiFilter", "true")); }
+    private static boolean triggerUiFilter() { return Boolean.parseBoolean(System.getProperty("bmc.ds.fastForms.triggerUiFilter", "false")); }
     private static boolean serverFilter() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.serverFilter", "true")); }
     private static boolean hardFilterItemLists() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.hardFilterItemLists", "false")); }
     private static boolean hardFilterProviderResults() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.hardFilterProviderResults", "false")); }

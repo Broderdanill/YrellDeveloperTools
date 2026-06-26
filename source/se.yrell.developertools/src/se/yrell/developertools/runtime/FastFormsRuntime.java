@@ -1066,7 +1066,7 @@ public final class FastFormsRuntime {
 
     private static boolean isEnabled() { return ToolsPreferences.isFastFormsEnabled(); }
     private static boolean isDebug() { return ToolsPreferences.isFastFormsDebugEnabled(); }
-    private static boolean triggerUiFilter() { return true; }
+    private static boolean triggerUiFilter() { return Boolean.parseBoolean(System.getProperty("bmc.ds.fastForms.triggerUiFilter", "false")); }
     private static boolean serverFilter() { return true; }
     private static boolean hardFilterItemLists() { return false; }
     private static boolean hardFilterProviderResults() { return false; }
