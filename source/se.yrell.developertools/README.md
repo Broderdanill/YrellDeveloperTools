@@ -1,4 +1,4 @@
-# Yrell Developer Tools 0.1.41
+# Yrell Developer Tools 0.1.42
 
 Developer Studio helper plugin for BMC Helix/AR System Developer Studio.
 
@@ -6,8 +6,8 @@ Developer Studio helper plugin for BMC Helix/AR System Developer Studio.
 
 1. Close Developer Studio.
 2. Remove older `se.yrell.developertools_*.jar` from `x64/plugins`.
-3. Copy `install/se.yrell.developertools_0.1.41.jar` to `x64/plugins`.
-4. If Fast object lists is used as Java agent, update `DeveloperStudio.ini` to point at `se.yrell.developertools_0.1.41.jar`.
+3. Copy `install/se.yrell.developertools_0.1.42.jar` to `x64/plugins`.
+4. If Fast object lists is used as Java agent, update `DeveloperStudio.ini` to point at `se.yrell.developertools_0.1.42.jar`.
 5. Start Developer Studio with `-clean -consoleLog`.
 
 Fast object lists still requires the same jar to be loaded with `-javaagent` in `DeveloperStudio.ini` if you want the initial server-side object-list request to be filtered before BMC classes load.
@@ -42,7 +42,7 @@ Filters list loading by Customization Type values such as `2,4` for Overlay and 
 
 Important: true initial server-side filtering requires the jar as Java agent. Without `-javaagent`, Developer Studio may load all objects first and filter afterwards.
 
-0.1.41 fixes the Java agent default so it follows the plugin principle: Fast object lists is disabled unless `bmc.ds.fastForms.enabled=true` is configured or the saved agent properties file enables it.
+0.1.42 fixes the Java agent default so it follows the plugin principle: Fast object lists is disabled unless `bmc.ds.fastForms.enabled=true` is configured or the saved agent properties file enables it.
 
 ### Keepalive
 
@@ -78,6 +78,6 @@ It removes only the current view instance. The AR field remains on the form and 
 
 ## Build notes
 
-- Bundle version: `0.1.41`
+- Bundle version: `0.1.42`
 - Java bytecode: 17 / major version 61
 - Same jar can be used both as Eclipse plugin and Fast object lists Java agent.

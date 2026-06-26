@@ -17,11 +17,23 @@ import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.ui.views.properties.IPropertyDescriptor;
 import org.eclipse.ui.views.properties.IPropertySource;
 
+import com.bmc.arsys.api.ArithmeticOrRelationalOperand;
+import com.bmc.arsys.api.DataType;
+import com.bmc.arsys.api.FieldOperandInfo;
 import com.bmc.arsys.api.GroupInfo;
+import com.bmc.arsys.api.Keyword;
+import com.bmc.arsys.api.OperandType;
 import com.bmc.arsys.api.PermissionInfo;
 import com.bmc.arsys.api.QualifierInfo;
+import com.bmc.arsys.api.QueryFormField;
+import com.bmc.arsys.api.RelationalOperationInfo;
 import com.bmc.arsys.api.TableFieldLimit;
+import com.bmc.arsys.api.Value;
+import com.bmc.arsys.studio.model.ar.ARTableField;
+import com.bmc.arsys.studio.model.store.IFieldObject;
+import com.bmc.arsys.studio.model.store.IFormObject;
 import com.bmc.arsys.studio.model.store.IStore;
+import com.bmc.arsys.studio.model.type.IARSystemTypes;
 
 import se.yrell.developertools.Log;
 
@@ -94,8 +106,23 @@ final class ObjectInsightCollector {
                 || name.startsWith("com.bmc.arsys.studio.model.store.");
     }
 
-    private void addPermissionRows(List<InsightRow> rows, Object target) {
+    private Object effectiveField(Object target) {
         Object field = callFirst(target, "getField");
+        if (field != null) {
+            return field;
+        }
+        if (target instanceof IFieldObject || target instanceof ARTableField) {
+            return target;
+        }
+        Object limit = callFirst(target, "getFieldLimit");
+        if (limit != null) {
+            return target;
+        }
+        return null;
+    }
+
+    private void addPermissionRows(List<InsightRow> rows, Object target) {
+        Object field = effectiveField(target);
         IStore store = findStore(target, field);
 
         Map<Integer, Integer> permissions = new LinkedHashMap<Integer, Integer>();
@@ -165,7 +192,7 @@ final class ObjectInsightCollector {
     }
 
     private void addTableRows(List<InsightRow> rows, Object target) {
-        Object field = callFirst(target, "getField");
+        Object field = effectiveField(target);
         IStore store = findStore(target, field);
 
         Object treeProps = callFirst(target, "getTreeTableProperties");
@@ -179,7 +206,7 @@ final class ObjectInsightCollector {
 
         QualifierInfo qualifier = firstQualifier(treeProps, sortProps, field, target);
         if (qualifier != null) {
-            rows.add(new InsightRow("Table", "Qualification", "", formatQualification(store, qualifier)));
+            rows.add(new InsightRow("Table", "Qualification", "", formatQualification(store, qualifier, target, field)));
         }
 
         addSortRows(rows, sortProps);
@@ -643,10 +670,43 @@ final class ObjectInsightCollector {
         return "Direction " + direction;
     }
 
-    private String formatQualification(IStore store, QualifierInfo qualifier) {
+    private String formatQualification(IStore store, QualifierInfo qualifier, Object target, Object field) {
         if (qualifier == null) {
             return "";
         }
+
+        // Table qualifications are evaluated against the remote/table form first and
+        // the current form second.  If we format without those field collections,
+        // Developer Studio/AR API can fall back to the compact internal encoding
+        // such as 4\6\1\101\2\0\.  Use the same field order as BMC's
+        // UITableField validation code: remoteForm.getFields(), currentForm.getFields().
+        IFormObject currentForm = currentFormObject(target, field);
+        IFormObject remoteForm = remoteFormObject(target, field, currentForm);
+        String formatted = formatQualificationWithFields(store, qualifier, remoteForm, currentForm);
+        if (isReadableQualification(formatted)) {
+            return shortText(formatted);
+        }
+
+        // Extra fallback for simple/common qualifications. This keeps Object Insight
+        // readable even if the remote form cannot be loaded but the QualifierInfo tree
+        // still contains enough metadata to resolve field names.
+        String manual = manualQualificationText(qualifier, fields(remoteForm), fields(currentForm));
+        if (manual.length() > 0) {
+            return shortText(manual);
+        }
+
+        try {
+            if (store != null) {
+                formatted = store.formatQualification(qualifier, Collections.emptyList(), Collections.emptyList(), 0, false);
+                if (isReadableQualification(formatted)) {
+                    return shortText(formatted);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+
+        // Last resort: encoded/internal text is better than a blank value, but only
+        // after all readable alternatives have failed.
         try {
             if (store != null) {
                 String encoded = store.encodeQualification(qualifier);
@@ -656,17 +716,303 @@ final class ObjectInsightCollector {
             }
         } catch (Throwable ignored) {
         }
-        try {
-            if (store != null) {
-                String formatted = store.formatQualification(qualifier,
-                        Collections.emptyList(), Collections.emptyList(), 0, false);
-                if (formatted != null && formatted.trim().length() > 0) {
-                    return shortText(formatted);
-                }
-            }
-        } catch (Throwable ignored) {
-        }
         return cleanQualificationText(safeString(qualifier));
+    }
+
+    private String formatQualificationWithFields(IStore store, QualifierInfo qualifier, IFormObject primaryForm, IFormObject secondaryForm) {
+        if (store == null || qualifier == null || primaryForm == null) {
+            return "";
+        }
+        try {
+            Collection<IFieldObject> primaryFields = primaryForm.getFields();
+            Collection<IFieldObject> secondaryFields = secondaryForm == null
+                    ? Collections.<IFieldObject>emptyList()
+                    : secondaryForm.getFields();
+            String formatted = store.formatQualification(qualifier, primaryFields, secondaryFields, 0, false);
+            return formatted == null ? "" : formatted.trim();
+        } catch (Throwable ignored) {
+            return "";
+        }
+    }
+
+    private IFormObject currentFormObject(Object target, Object field) {
+        Object direct = callFirst(target, "getARForm", "getFormObject");
+        if (direct instanceof IFormObject) {
+            return (IFormObject) direct;
+        }
+        Object formView = callFirst(target, "getFormView", "getFormViewLayout");
+        direct = callFirst(formView, "getARForm", "getFormObject");
+        if (direct instanceof IFormObject) {
+            return (IFormObject) direct;
+        }
+        direct = callFirst(field, "getARForm", "getFormObject");
+        if (direct instanceof IFormObject) {
+            return (IFormObject) direct;
+        }
+
+        IStore store = findStore(target, field);
+        String formName = firstNonEmpty(safeString(callFirst(field, "getForm")), safeString(callFirst(target, "getForm")));
+        return loadFormObject(store, formName);
+    }
+
+    private IFormObject remoteFormObject(Object target, Object field, IFormObject currentForm) {
+        if (field instanceof ARTableField && currentForm != null) {
+            try {
+                IFormObject remote = ((ARTableField) field).getRemoteFormObject(currentForm);
+                if (remote != null) {
+                    return remote;
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        Object remote = currentForm == null ? null : callOneArg(field, "getRemoteFormObject", currentForm);
+        if (remote instanceof IFormObject) {
+            return (IFormObject) remote;
+        }
+        remote = currentForm == null ? null : callOneArg(target, "getRemoteFormObject", currentForm);
+        if (remote instanceof IFormObject) {
+            return (IFormObject) remote;
+        }
+
+        IStore remoteStore = null;
+        String remoteFormName = "";
+        if (field instanceof ARTableField) {
+            try {
+                remoteStore = ((ARTableField) field).getRemoteStore();
+            } catch (Throwable ignored) {
+            }
+            try {
+                remoteFormName = safeString(((ARTableField) field).getRemoteFormName());
+            } catch (Throwable ignored) {
+            }
+        }
+        if (remoteStore == null) {
+            Object storeObj = callFirst(field, "getRemoteStore");
+            if (storeObj instanceof IStore) {
+                remoteStore = (IStore) storeObj;
+            }
+        }
+        if (remoteFormName.length() == 0) {
+            remoteFormName = firstNonEmpty(
+                    safeString(callFirst(field, "getRemoteFormName")),
+                    safeString(callFirst(target, "getRemoteFormName")));
+        }
+        if (remoteStore == null) {
+            remoteStore = findStore(target, field);
+        }
+        return loadFormObject(remoteStore, remoteFormName);
+    }
+
+    private IFormObject loadFormObject(IStore store, String formName) {
+        if (store == null || formName == null || formName.trim().length() == 0) {
+            return null;
+        }
+        try {
+            Object form = store.getObject(IARSystemTypes.FORM, formName.trim());
+            return form instanceof IFormObject ? (IFormObject) form : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private Collection<IFieldObject> fields(IFormObject form) {
+        if (form == null) {
+            return Collections.emptyList();
+        }
+        try {
+            Collection<IFieldObject> fields = form.getFields();
+            return fields == null ? Collections.<IFieldObject>emptyList() : fields;
+        } catch (Throwable ignored) {
+            return Collections.emptyList();
+        }
+    }
+
+    private boolean isReadableQualification(String text) {
+        String q = safeString(text);
+        return q.length() > 0 && !looksLikeEncodedQualification(q);
+    }
+
+    private boolean looksLikeEncodedQualification(String text) {
+        String q = safeString(text);
+        if (q.length() == 0) {
+            return false;
+        }
+        if (q.indexOf('\\') < 0) {
+            return false;
+        }
+        return q.matches("[0-9]+(\\\\[0-9A-Za-z_$.-]+)+\\\\?");
+    }
+
+    private String manualQualificationText(QualifierInfo qualifier, Collection<IFieldObject> primaryFields, Collection<IFieldObject> secondaryFields) {
+        try {
+            return manualQualifier(qualifier, primaryFields, secondaryFields);
+        } catch (Throwable ignored) {
+            return "";
+        }
+    }
+
+    private String manualQualifier(QualifierInfo qualifier, Collection<IFieldObject> primaryFields, Collection<IFieldObject> secondaryFields) {
+        if (qualifier == null) {
+            return "";
+        }
+        int op = qualifier.getOperation();
+        if (op == QualifierInfo.AR_COND_OP_NONE) {
+            return "No qualification";
+        }
+        if (op == QualifierInfo.AR_COND_OP_AND || op == QualifierInfo.AR_COND_OP_OR) {
+            String left = manualQualifier(qualifier.getLeftOperand(), primaryFields, secondaryFields);
+            String right = manualQualifier(qualifier.getRightOperand(), primaryFields, secondaryFields);
+            if (left.length() == 0 || right.length() == 0) {
+                return "";
+            }
+            return "(" + left + ") " + (op == QualifierInfo.AR_COND_OP_AND ? "AND" : "OR") + " (" + right + ")";
+        }
+        if (op == QualifierInfo.AR_COND_OP_NOT) {
+            String not = manualQualifier(qualifier.getNotOperand(), primaryFields, secondaryFields);
+            return not.length() == 0 ? "" : "NOT (" + not + ")";
+        }
+        if (op == QualifierInfo.AR_COND_OP_REL_OP) {
+            RelationalOperationInfo rel = qualifier.getRelationalOperationInfo();
+            if (rel == null) {
+                return "";
+            }
+            String left = manualOperand(rel.getLeftOperand(), primaryFields, secondaryFields);
+            String right = manualOperand(rel.getRightOperand(), primaryFields, secondaryFields);
+            if (left.length() == 0) {
+                return "";
+            }
+            if (rel.getOperation() == RelationalOperationInfo.AR_REL_OP_EXISTS) {
+                return "EXISTS " + left;
+            }
+            return left + " " + relationOperatorText(rel.getOperation()) + " " + right;
+        }
+        return "";
+    }
+
+    private String manualOperand(ArithmeticOrRelationalOperand operand, Collection<IFieldObject> primaryFields, Collection<IFieldObject> secondaryFields) {
+        if (operand == null) {
+            return "";
+        }
+        OperandType type = operand.getType();
+        Object value = operand.getValue();
+        if (isFieldOperand(type) || value instanceof FieldOperandInfo || value instanceof QueryFormField || value instanceof Number) {
+            Integer fieldId = fieldIdFromOperand(operand, value);
+            if (fieldId != null) {
+                String name = fieldName(primaryFields, fieldId.intValue());
+                if (name.length() == 0) {
+                    name = fieldName(secondaryFields, fieldId.intValue());
+                }
+                return name.length() == 0 ? "'" + fieldId + "'" : "'" + name + "'";
+            }
+        }
+        if (value instanceof Value) {
+            return manualValue((Value) value);
+        }
+        if (value instanceof Keyword) {
+            return keywordText((Keyword) value);
+        }
+        String text = safeString(value);
+        return text.length() == 0 ? safeString(operand) : text;
+    }
+
+    private boolean isFieldOperand(OperandType type) {
+        return OperandType.FIELDID.equals(type)
+                || OperandType.FIELDID_CURRENT.equals(type)
+                || OperandType.FIELDID_DB.equals(type)
+                || OperandType.FIELDID_TRANSACTION.equals(type);
+    }
+
+    private Integer fieldIdFromOperand(ArithmeticOrRelationalOperand operand, Object value) {
+        if (value instanceof FieldOperandInfo) {
+            return Integer.valueOf(((FieldOperandInfo) value).getFieldId());
+        }
+        if (value instanceof QueryFormField) {
+            return Integer.valueOf(((QueryFormField) value).getFieldId());
+        }
+        if (value instanceof Number) {
+            return Integer.valueOf(((Number) value).intValue());
+        }
+        return toInteger(callFirst(value, "getFieldId", "getFieldID"));
+    }
+
+    private String fieldName(Collection<IFieldObject> fields, int fieldId) {
+        if (fields == null) {
+            return "";
+        }
+        int count = 0;
+        for (IFieldObject field : fields) {
+            if (field == null || count++ >= MAX_COLLECTION_ITEMS) {
+                break;
+            }
+            try {
+                if (field.getFieldID() == fieldId) {
+                    return safeString(field.getName());
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return "";
+    }
+
+    private String manualValue(Value value) {
+        if (value == null) {
+            return "$NULL$";
+        }
+        try {
+            if (DataType.NULL.equals(value.getDataType()) || value.getValue() == null) {
+                return "$NULL$";
+            }
+            Object raw = value.getValue();
+            if (raw instanceof Keyword) {
+                return keywordText((Keyword) raw);
+            }
+            if (raw instanceof CharSequence) {
+                return "\"" + safeString(raw) + "\"";
+            }
+            return safeString(raw);
+        } catch (Throwable ignored) {
+            String text = safeString(value);
+            return text.length() == 0 ? "$NULL$" : text;
+        }
+    }
+
+    private String keywordText(Keyword keyword) {
+        if (keyword == null) {
+            return "$NULL$";
+        }
+        String text = safeString(keyword);
+        if (text.length() == 0 || "NULL".equalsIgnoreCase(text)) {
+            return "$NULL$";
+        }
+        if (text.startsWith("$") && text.endsWith("$")) {
+            return text;
+        }
+        return "$" + text + "$";
+    }
+
+    private String relationOperatorText(int operation) {
+        switch (operation) {
+        case RelationalOperationInfo.AR_REL_OP_EQUAL:
+            return "=";
+        case RelationalOperationInfo.AR_REL_OP_GREATER:
+            return ">";
+        case RelationalOperationInfo.AR_REL_OP_GREATER_EQUAL:
+            return ">=";
+        case RelationalOperationInfo.AR_REL_OP_LESS:
+            return "<";
+        case RelationalOperationInfo.AR_REL_OP_LESS_EQUAL:
+            return "<=";
+        case RelationalOperationInfo.AR_REL_OP_NOT_EQUAL:
+            return "!=";
+        case RelationalOperationInfo.AR_REL_OP_LIKE:
+            return "LIKE";
+        case RelationalOperationInfo.AR_REL_OP_IN:
+            return "IN";
+        case RelationalOperationInfo.AR_REL_OP_NOT_IN:
+            return "NOT IN";
+        default:
+            return "Operator " + operation;
+        }
     }
 
     private boolean isPermissionDescriptor(IPropertyDescriptor descriptor) {
@@ -740,6 +1086,29 @@ final class ObjectInsightCollector {
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    private Object callOneArg(Object target, String methodName, Object arg) {
+        if (target == null || methodName == null || arg == null) {
+            return null;
+        }
+        try {
+            Method[] methods = target.getClass().getMethods();
+            for (int i = 0; i < methods.length; i++) {
+                Method method = methods[i];
+                if (!methodName.equals(method.getName()) || method.getParameterTypes().length != 1) {
+                    continue;
+                }
+                Class<?> parameterType = method.getParameterTypes()[0];
+                if (!parameterType.isAssignableFrom(arg.getClass())) {
+                    continue;
+                }
+                method.setAccessible(true);
+                return method.invoke(target, new Object[] { arg });
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 
     private String formatGeneralValue(Object value, IdentityHashMap<Object, Boolean> seen, int depth) {
