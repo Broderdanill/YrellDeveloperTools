@@ -37,5 +37,6 @@ public class DeveloperStudioToolsPreferenceInitializer extends AbstractPreferenc
         store.setDefault(ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS, ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS);
 
         store.setDefault(ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED, ToolsConstants.DEFAULT_OBJECT_INSIGHT_ENABLED);
+        store.setDefault(ToolsConstants.PREF_REMOVE_FROM_VIEW_ENABLED, ToolsConstants.DEFAULT_REMOVE_FROM_VIEW_ENABLED);
     }
 }

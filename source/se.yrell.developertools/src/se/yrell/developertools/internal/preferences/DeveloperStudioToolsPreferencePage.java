@@ -42,6 +42,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
     private BooleanFieldEditor keepAliveEnabledEditor;
     private StringFieldEditor keepAliveIntervalEditor;
     private BooleanFieldEditor objectInsightEnabledEditor;
+    private BooleanFieldEditor removeFromViewEnabledEditor;
 
     public DeveloperStudioToolsPreferencePage() {
         super(GRID);
@@ -110,7 +111,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         fastFormsDebugEditor = new BooleanFieldEditor(ToolsConstants.PREF_FAST_FORMS_DEBUG,
                 "Debug logging for Fast object lists", fastGroup);
         addField(fastFormsDebugEditor);
-        addImportant(fastGroup, "IMPORTANT: Fast object lists only becomes truly fast when the jar is also loaded as a Java agent before Developer Studio loads BMC list classes. Without -javaagent, Developer Studio can first load all objects and only filter afterwards, which can be slower. Add this line to DeveloperStudio.ini, restart with -clean, then enable this feature:\n-javaagent:<path-to-plugins>/se.yrell.developertools_0.1.35.jar");
+        addImportant(fastGroup, "IMPORTANT: Fast object lists only becomes truly fast when the jar is also loaded as a Java agent before Developer Studio loads BMC list classes. Without -javaagent, Developer Studio can first load all objects and only filter afterwards, which can be slower. Add this line to DeveloperStudio.ini, restart with -clean, then enable this feature:\n-javaagent:<path-to-plugins>/se.yrell.developertools_0.1.37.jar");
         fastFormsAgentStatusLabel = addInfo(fastGroup, fastFormsAgentStatusText());
         addCopyAgentButton(fastGroup);
 
@@ -128,7 +129,13 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         objectInsightEnabledEditor = new BooleanFieldEditor(ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED,
                 "Show selected object details panel", insightGroup);
         addField(objectInsightEnabledEditor);
-        addInfo(insightGroup, "Adds a Developer Studio view named Object Insight. It follows the current selection and shows values that are otherwise hidden behind ... dialogs, including field permissions and table-field qualification/sort information. The view is auto-opened when enabled and can be moved/stacked under Properties; Developer Studio should remember the placement.");
+        addInfo(insightGroup, "Opens the Object Insight view. It shows field permissions as one row per group, plus table qualification and sort when a table field is selected.");
+
+        Composite viewActionsGroup = createGroup(parent, "Form view actions");
+        removeFromViewEnabledEditor = new BooleanFieldEditor(ToolsConstants.PREF_REMOVE_FROM_VIEW_ENABLED,
+                "Enable right-click action: Remove from view", viewActionsGroup);
+        addField(removeFromViewEnabledEditor);
+        addInfo(viewActionsGroup, "Adds Remove from view on form-editor selections when the selected field also exists in another view. It removes only the current view instance; the field remains on the form and in other views.");
     }
 
     private Composite createGroup(Composite parent, String text) {
@@ -145,7 +152,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         Label label = new Label(parent, SWT.WRAP);
         label.setText(text);
         GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
-        data.widthHint = 900;
+        data.widthHint = 720;
         data.verticalIndent = 2;
         label.setLayoutData(data);
         return label;
@@ -155,7 +162,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         Label label = new Label(parent, SWT.WRAP);
         label.setText(text);
         GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
-        data.widthHint = 900;
+        data.widthHint = 720;
         data.verticalIndent = 4;
         label.setLayoutData(data);
         return label;
@@ -206,7 +213,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         } catch (Throwable ignored) {
             // Fall through to generic example.
         }
-        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.35.jar";
+        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.37.jar";
     }
 
     @Override

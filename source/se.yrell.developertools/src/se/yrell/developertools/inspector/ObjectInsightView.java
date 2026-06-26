@@ -1,9 +1,14 @@
 package se.yrell.developertools.inspector;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jface.viewers.ISelection;
+import org.eclipse.jface.viewers.ISelectionChangedListener;
+import org.eclipse.jface.viewers.ISelectionProvider;
 import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.jface.viewers.SelectionChangedEvent;
+import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -28,6 +33,7 @@ public class ObjectInsightView extends ViewPart implements ISelectionListener {
     private Label heading;
     private Table table;
     private final ObjectInsightCollector collector = new ObjectInsightCollector();
+    private final LastExternalSelectionProvider selectionProvider = new LastExternalSelectionProvider();
 
     @Override
     public void createPartControl(Composite parent) {
@@ -35,7 +41,7 @@ public class ObjectInsightView extends ViewPart implements ISelectionListener {
         root.setLayout(new GridLayout(1, false));
 
         heading = new Label(root, SWT.WRAP);
-        heading.setText("Select a Developer Studio object to show permissions or table qualification.");
+        heading.setText("Select a Developer Studio object to show permissions, table qualification or table sort.");
         heading.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
 
         table = new Table(root, SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL);
@@ -43,11 +49,13 @@ public class ObjectInsightView extends ViewPart implements ISelectionListener {
         table.setLinesVisible(true);
         table.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
-        createColumn("Category", 140);
-        createColumn("Attribute", 190);
-        createColumn("Value", 520);
+        createColumn("Category", 120);
+        createColumn("Name", 260);
+        createColumn("ID", 90);
+        createColumn("Value", 560);
 
         try {
+            getSite().setSelectionProvider(selectionProvider);
             getSite().getWorkbenchWindow().getSelectionService().addPostSelectionListener(this);
             ISelection selection = getSite().getWorkbenchWindow().getSelectionService().getSelection();
             render(selection);
@@ -91,6 +99,9 @@ public class ObjectInsightView extends ViewPart implements ISelectionListener {
             return;
         }
         Object selected = selectedObject(selection);
+        if (selection != null && selected != null) {
+            selectionProvider.setSelection(selection);
+        }
         List<InsightRow> rows = collector.collect(selected);
         table.setRedraw(false);
         try {
@@ -98,7 +109,7 @@ public class ObjectInsightView extends ViewPart implements ISelectionListener {
             for (int i = 0; i < rows.size(); i++) {
                 InsightRow row = rows.get(i);
                 TableItem item = new TableItem(table, SWT.NONE);
-                item.setText(new String[] { row.category, row.attribute, row.value });
+                item.setText(new String[] { row.category, row.name, row.id, row.value });
             }
             if (heading != null && !heading.isDisposed()) {
                 heading.setText(selected == null
@@ -118,5 +129,48 @@ public class ObjectInsightView extends ViewPart implements ISelectionListener {
             }
         }
         return null;
+    }
+
+    /**
+     * Keeps the Properties view on the real Developer Studio selection even when
+     * focus moves into Object Insight. Without this, Eclipse can treat the Object
+     * Insight table row as the active selection and clear the normal Properties view.
+     */
+    private static final class LastExternalSelectionProvider implements ISelectionProvider {
+        private final List<ISelectionChangedListener> listeners = new ArrayList<ISelectionChangedListener>();
+        private ISelection selection = StructuredSelection.EMPTY;
+
+        @Override
+        public void addSelectionChangedListener(ISelectionChangedListener listener) {
+            if (listener != null && !listeners.contains(listener)) {
+                listeners.add(listener);
+            }
+        }
+
+        @Override
+        public ISelection getSelection() {
+            return selection;
+        }
+
+        @Override
+        public void removeSelectionChangedListener(ISelectionChangedListener listener) {
+            listeners.remove(listener);
+        }
+
+        @Override
+        public void setSelection(ISelection selection) {
+            if (selection == null) {
+                return;
+            }
+            this.selection = selection;
+            SelectionChangedEvent event = new SelectionChangedEvent(this, selection);
+            for (ISelectionChangedListener listener : new ArrayList<ISelectionChangedListener>(listeners)) {
+                try {
+                    listener.selectionChanged(event);
+                } catch (Throwable ignored) {
+                    // Never let the helper view break Developer Studio selection handling.
+                }
+            }
+        }
     }
 }

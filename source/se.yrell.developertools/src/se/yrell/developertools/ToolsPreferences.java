@@ -181,6 +181,11 @@ public final class ToolsPreferences {
                 ToolsConstants.DEFAULT_OBJECT_INSIGHT_ENABLED);
     }
 
+    public static boolean isRemoveFromViewEnabled() {
+        return node().getBoolean(ToolsConstants.PREF_REMOVE_FROM_VIEW_ENABLED,
+                ToolsConstants.DEFAULT_REMOVE_FROM_VIEW_ENABLED);
+    }
+
 
     /**
      * Deprecated since 0.1.5. Auto Field ID is intentionally local again and no longer scans all forms.

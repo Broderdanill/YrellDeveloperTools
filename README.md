@@ -1,150 +1,74 @@
-# Yrell Developer Tools 0.1.36
+# Yrell Developer Tools 0.1.37
 
-Developer Studio helper plugin for BMC Helix/Remedy Developer Studio.
+Developer Studio helper plugin for BMC Helix/AR System Developer Studio.
 
-All features are **disabled by default**. Enable only the parts you want under:
+## Install
+
+1. Close Developer Studio.
+2. Remove older `se.yrell.developertools_*.jar` from `x64/plugins`.
+3. Copy `install/se.yrell.developertools_0.1.37.jar` to `x64/plugins`.
+4. Start Developer Studio with `-clean -consoleLog`.
+
+Fast object lists still requires the same jar to be loaded with `-javaagent` in `DeveloperStudio.ini` if you want the initial server-side object-list request to be filtered before BMC classes load.
+
+## Features
+
+All features are disabled by default and must be enabled in:
 
 `Window -> Preferences -> Yrell Developer Tools`
 
-The plugin is compiled as Java 17 bytecode and is intended to run on JDK 17 and JDK 21.
+### Custom suffix cleanup
 
-## Installation
+Removes BMC's automatic `__c` suffix while new objects/fields are created. It does not run post-save cleanup and does not rename existing saved objects.
 
-1. Close Developer Studio.
-2. Remove older versions of this plugin and older standalone helper plugins, for example:
-   - `se.yrell.developertools_*.jar`
-   - `se.yrell.devstudio.keepalive_*.jar`
-   - old `devstudio-fastforms` agent jars if they are no longer used separately
-3. Copy `install/se.yrell.developertools_0.1.36.jar` to Developer Studio's `plugins` folder.
-4. Start Developer Studio once with `-clean -consoleLog`.
+### Default naming
 
-## Fast object lists and the required Java agent step
+Can automatically set database names for table columns using a configurable pattern.
 
-Fast object lists can only make the initial object fetch fast if the jar is also loaded as a Java agent before BMC's list provider classes are loaded.
+### Automatic field IDs
 
-Add the same jar to `DeveloperStudio.ini`, for example:
+Can assign custom field IDs using the format `<Developer ID><YY><MM><DD><NN>`.
 
-```text
--javaagent:C:\Temp\se.yrell.developertools_0.1.36.jar
-```
+### PWA icon helper
 
-or, if the path works in your installation:
+Adds the Icon picker button next to Icon properties and can preload the CSS-based PWA icon catalog.
 
-```text
--javaagent:C:\Program Files\BMC Software_25_3_Beta\DeveloperStudio\plugins\se.yrell.developertools_0.1.36.jar
-```
+### Fast object lists
 
-If the jar is only installed as a normal Eclipse plugin, Developer Studio may first load all objects and only filter the result afterwards. That can be slower than not using the feature. The Preferences page shows an IMPORTANT note and an agent-status line so this step is harder to miss.
+Filters list loading by Customization Type values such as `2,4` for Overlay and Custom.
 
-After changing Fast object lists settings, restart Developer Studio with `-clean`.
+Important: true initial server-side filtering requires the jar as Java agent. Without `-javaagent`, Developer Studio may load all objects first and filter afterwards.
 
-## Object Insight panel
+### Keepalive
 
-Setting:
+Can periodically call `verifyUser()` on connected AR Server sessions. It does not load forms or object lists.
 
-`Show selected object details panel`
+### Object Insight
 
-Adds a Developer Studio view named **Object Insight**. The view follows the current selection and shows selected high-value properties without opening every `...` dialog in the standard Properties view.
+Optional view that follows the selected Developer Studio object.
 
-Initial focus is deliberately small:
+Current display:
 
-- permissions: shows the groups/permission entries for the selected object
-- table-field qualification: shows the qualification set on the selected table field
+- Field permissions as one row per group, with group name, group ID and permission value.
+- Table qualification for selected table fields.
+- Table sort columns for selected table fields.
 
-Other object details are intentionally hidden for now so the panel stays clean. More values can be added later one at a time.
+The view keeps the last real Developer Studio selection as its own selection provider so the normal Properties view should not clear just because Object Insight receives focus.
 
-The view is contributed to both the Developer and Editor perspectives and is intended to be stacked with/near the normal Properties view. It is also auto-opened when the setting is enabled. If Developer Studio keeps an existing old perspective layout, move the view once under Properties and the workbench should remember the placement.
+### Remove from view
 
-## Custom suffix cleanup
+Optional right-click command: `Remove from view`.
 
-Setting:
+The command is visible only when:
 
-`Remove BMC's automatic __c suffix`
+- the feature is enabled in settings,
+- the selection is a form-editor UI field,
+- the field exists in at least one other view.
 
-When enabled, the plugin removes BMC's automatic `__c` suffix during new object/name generation. It is intended to affect:
+It removes only the current view instance. The AR field remains on the form and remains in the other views.
 
-- new forms and their default fields
-- new fields added to existing forms
-- proposed names in UI creation flows
+## Build notes
 
-It does **not** run a post-save cleanup and must not rename old, already-saved fields. This avoids breaking workflow or references that already depend on an existing `__c` name.
-
-## Default naming
-
-Setting:
-
-`Table columns: set database name automatically`
-
-Pattern setting:
-
-`Table column pattern`
-
-Default pattern:
-
-```text
-col_{remote_form}_{remote_field_name}
-```
-
-Supported tokens:
-
-- `{form}`
-- `{remote_form}`
-- `{field_name}`
-- `{remote_field_name}`
-- `{field_id}`
-
-The generated database name is normalized to lower-case ASCII with underscores.
-
-## Automatic field IDs
-
-Setting:
-
-`Enable automatic field ID assignment`
-
-Developer ID is required when this feature is enabled. Valid range is currently `10-21` because generated IDs are ten-digit signed integer values.
-
-Format:
-
-```text
-<Developer ID><YY><MM><DD><NN>
-```
-
-Example:
-
-```text
-1226062301
-```
-
-The plugin calculates the next value from the current day and checks AR metadata for already-used IDs. If the current day is full, it rolls forward to the next day.
-
-## PWA icon helper
-
-Setting:
-
-`Show icon picker button next to Icon properties`
-
-Required when enabled:
-
-```text
-CSS icon catalog URL
-```
-
-Example:
-
-```text
-https://<midtier>/arsys/pwa/styles.xxxxxxx.css
-```
-
-The plugin reads `d-icon-*` definitions from the PWA CSS and embeds referenced `dpl-iconfont` `.woff/.woff2` fonts in the picker preview. The icon picker opens from the `Icon` property button. It also supports clearing the value.
-
-## Keepalive
-
-Setting:
-
-`Keep AR server sessions alive`
-
-Interval range: `30-3600` seconds.
-
-The current implementation calls `verifyUser()` on already connected AR Server sessions. It is intentionally lightweight and does not load forms, workflow or object lists.
-
-Keepalive can reduce idle-session problems, but it is not a full fix for every hang. Developer Studio can also pause because of object-list/cache refreshes, RPC/API timeouts, authentication/token expiry, server-side transaction timeouts, RSSO/SSO idle timeout, load balancers, or network idle connection handling.
+- Bundle version: `0.1.37`
+- Java bytecode: 17 / major version 61
+- Same jar can be used both as Eclipse plugin and Fast object lists Java agent.

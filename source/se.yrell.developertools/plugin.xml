@@ -47,4 +47,43 @@
       </perspectiveExtension>
    </extension>
 
+   <extension point="org.eclipse.ui.commands">
+      <command
+            id="se.yrell.developertools.commands.removeFromView"
+            name="Remove from view"/>
+   </extension>
+
+   <extension point="org.eclipse.ui.handlers">
+      <handler
+            commandId="se.yrell.developertools.commands.removeFromView"
+            class="se.yrell.developertools.viewactions.RemoveFromViewHandler"/>
+   </extension>
+
+   <extension point="org.eclipse.core.expressions.propertyTesters">
+      <propertyTester
+            id="se.yrell.developertools.removeFromViewPropertyTester"
+            namespace="se.yrell.developertools"
+            properties="canRemoveFromView"
+            type="java.lang.Object"
+            class="se.yrell.developertools.viewactions.RemoveFromViewPropertyTester"/>
+   </extension>
+
+   <extension point="org.eclipse.ui.menus">
+      <menuContribution locationURI="popup:org.eclipse.ui.popup.any?after=additions">
+         <command
+               commandId="se.yrell.developertools.commands.removeFromView"
+               label="Remove from view"
+               style="push">
+            <visibleWhen checkEnabled="false">
+               <with variable="selection">
+                  <count value="1"/>
+                  <iterate ifEmpty="false" operator="and">
+                     <test property="se.yrell.developertools.canRemoveFromView"/>
+                  </iterate>
+               </with>
+            </visibleWhen>
+         </command>
+      </menuContribution>
+   </extension>
+
 </plugin>
