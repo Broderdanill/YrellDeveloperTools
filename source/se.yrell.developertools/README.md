@@ -1,4 +1,4 @@
-# Yrell Developer Tools 0.1.43
+# Yrell Developer Tools 0.1.44
 
 Developer Studio helper plugin for BMC Helix/AR System Developer Studio.
 
@@ -6,8 +6,8 @@ Developer Studio helper plugin for BMC Helix/AR System Developer Studio.
 
 1. Close Developer Studio.
 2. Remove older `se.yrell.developertools_*.jar` from `x64/plugins`.
-3. Copy `install/se.yrell.developertools_0.1.43.jar` to `x64/plugins`.
-4. If Fast object lists is used as Java agent, update `DeveloperStudio.ini` to point at `se.yrell.developertools_0.1.43.jar`.
+3. Copy `install/se.yrell.developertools_0.1.44.jar` to `x64/plugins`.
+4. If Fast object lists is used as Java agent, update `DeveloperStudio.ini` to point at `se.yrell.developertools_0.1.44.jar`.
 5. Start Developer Studio with `-clean -consoleLog`.
 
 Fast object lists still requires the same jar to be loaded with `-javaagent` in `DeveloperStudio.ini` if you want the initial server-side object-list request to be filtered before BMC classes load.
@@ -86,7 +86,7 @@ It removes only the current view instance. The AR field remains on the form and 
 
 0.1.40 uses BMC's own `RemoveFieldFromViewCommand` path when available so the current form view refreshes visually immediately and participates in the editor command stack.
 
-## 0.1.43 changes
+## 0.1.44 changes
 
 - Added Object list search helper setting.
 - Added Workflow field-map layout setting.
@@ -94,6 +94,6 @@ It removes only the current view instance. The AR field remains on the form and 
 
 ## Build notes
 
-- Bundle version: `0.1.43`
+- Bundle version: `0.1.44`
 - Java bytecode: 17 / major version 61
 - Same jar can be used both as Eclipse plugin and Fast object lists Java agent.

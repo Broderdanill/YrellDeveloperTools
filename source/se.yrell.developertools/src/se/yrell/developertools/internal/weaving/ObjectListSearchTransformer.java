@@ -113,6 +113,17 @@ final class ObjectListSearchTransformer implements Opcodes {
                 owner.transformed = true;
                 return;
             }
+            if (opcode == INVOKESPECIAL
+                    && "com/bmc/arsys/studio/ui/views/objectlist/FilteringSection".equals(ownerName)
+                    && "fireListeners".equals(name)
+                    && "()V".equals(descriptor)) {
+                // BMC clears the Text before changing the column. When we keep the Text,
+                // the SelectionCriteria value must also be kept in sync before the list refresh.
+                super.visitVarInsn(ALOAD, 0);
+                super.visitMethodInsn(INVOKESTATIC, RUNTIME_OWNER, "syncCriteriaValueFromSearchText",
+                        "(Ljava/lang/Object;)V", false);
+                owner.transformed = true;
+            }
             super.visitMethodInsn(opcode, ownerName, name, descriptor, isInterface);
         }
     }

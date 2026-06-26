@@ -76,6 +76,32 @@ public final class ObjectListSearchRuntime {
         }
     }
 
+    public static void syncCriteriaValueFromSearchText(Object filteringSection) {
+        if (!isEnabled() || filteringSection == null) {
+            return;
+        }
+        try {
+            Text text = findSearchText(filteringSection);
+            if (text == null || text.isDisposed()) {
+                return;
+            }
+            String value = text.getText();
+            Object nameFilter = callNoArg(filteringSection, "getNameFilter");
+            Object criteria = callNoArg(nameFilter, "getCriteria");
+            Object currentValue = callNoArg(criteria, "getValue");
+            if (value == null) {
+                value = "";
+            }
+            if (currentValue == null || !value.equals(String.valueOf(currentValue))) {
+                Method setValue = criteria.getClass().getMethod("setValue", String.class);
+                setValue.setAccessible(true);
+                setValue.invoke(criteria, value);
+            }
+        } catch (Throwable t) {
+            Log.warn("Object list search helper could not sync search text during column change: " + t.getMessage());
+        }
+    }
+
     private static Text findSearchText(Object filteringSection) throws Exception {
         Object nameText = readField(filteringSection, "nameText");
         Object textWidget = callNoArg(nameText, "getTextWidget");
