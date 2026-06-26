@@ -40,8 +40,8 @@ public final class FastFormsAgent {
     public static void premain(String args, Instrumentation inst) {
         System.setProperty("se.yrell.developertools.fastFormsAgent.active", "true");
         appendBridgeOnlyToBootstrap(inst);
-        FastFormsBridge.logAlways("loaded v8; enabled=" + FastFormsBridge.isEnabledForAgent() +
-            ", values=" + System.getProperty("bmc.ds.fastForms.values", "2,4") +
+        FastFormsBridge.logAlways("loaded v9; enabled=" + FastFormsBridge.isEnabledForAgent() +
+            ", values=" + FastFormsBridge.valuesForAgent() +
             ", logFile=" + FastFormsBridge.logFilePathForAgent() +
             ", bootstrapBridge=bridge-only");
         inst.addTransformer(new Transformer(), false);

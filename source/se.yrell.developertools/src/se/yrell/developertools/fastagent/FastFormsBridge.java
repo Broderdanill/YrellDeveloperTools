@@ -29,6 +29,7 @@ public final class FastFormsBridge {
     private FastFormsBridge() {}
 
     public static boolean isEnabledForAgent() { return isEnabled(); }
+    public static String valuesForAgent() { return agentProperty("bmc.ds.fastForms.values", "2,4"); }
     public static String logFilePathForAgent() { return logFilePath(); }
     public static void debugForAgent(String msg) { debug(msg); }
     public static void printStackForAgent(Throwable t) { if (isDebug()) writeStack(t); }
@@ -806,7 +807,7 @@ public final class FastFormsBridge {
 
     private static String safeClassName(Object o) { return o == null ? "<null>" : o.getClass().getName(); }
 
-    private static boolean isEnabled() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.enabled", "true")); }
+    private static boolean isEnabled() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.enabled", "false")); }
     private static boolean isDebug() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.debug", "false")); }
     private static boolean triggerUiFilter() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.triggerUiFilter", "true")); }
     private static boolean serverFilter() { return Boolean.parseBoolean(agentProperty("bmc.ds.fastForms.serverFilter", "true")); }

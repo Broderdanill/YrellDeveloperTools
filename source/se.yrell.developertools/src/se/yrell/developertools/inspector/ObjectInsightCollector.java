@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -54,16 +55,31 @@ final class ObjectInsightCollector {
 
     private Object unwrap(Object value) {
         Object current = value;
-        for (int i = 0; i < 8 && current != null; i++) {
+        IdentityHashMap<Object, Boolean> seen = new IdentityHashMap<Object, Boolean>();
+        for (int i = 0; i < 10 && current != null; i++) {
+            if (seen.containsKey(current)) {
+                return current;
+            }
+            seen.put(current, Boolean.TRUE);
+
             if (isUiOrModelObject(current)) {
                 return current;
             }
+
+            // Canvas/outline selections are often GEF edit parts or property wrappers.
+            // They can have an Eclipse property source, but the real permissions/table
+            // metadata lives on the BMC UI/model object behind getModel()/getField().
             Object next = callFirst(current,
                     "getModel", "getModelObject", "getObject", "getItem", "getField", "getFormObject", "getData", "getElement");
-            if (next == null || next == current) {
+            if (next != null && next != current) {
+                current = next;
+                continue;
+            }
+
+            if (propertySource(current) != null) {
                 return current;
             }
-            current = next;
+            return current;
         }
         return current;
     }
@@ -75,7 +91,7 @@ final class ObjectInsightCollector {
         String name = value.getClass().getName();
         return name.startsWith("com.bmc.arsys.studio.ui.editors.form.model.")
                 || name.startsWith("com.bmc.arsys.studio.model.ar.")
-                || propertySource(value) != null;
+                || name.startsWith("com.bmc.arsys.studio.model.store.");
     }
 
     private void addPermissionRows(List<InsightRow> rows, Object target) {
@@ -154,6 +170,12 @@ final class ObjectInsightCollector {
 
         Object treeProps = callFirst(target, "getTreeTableProperties");
         Object sortProps = callFirst(target, "getSortProperties");
+        TableFieldLimit limit = tableLimit(field, target);
+        if (!isTableCandidate(target, field, treeProps, sortProps, limit)) {
+            return;
+        }
+
+        addTableSourceRows(rows, treeProps, limit);
 
         QualifierInfo qualifier = firstQualifier(treeProps, sortProps, field, target);
         if (qualifier != null) {
@@ -163,7 +185,7 @@ final class ObjectInsightCollector {
         addSortRows(rows, sortProps);
 
         // Property-source fallback for older/variant table model objects where the methods above are hidden.
-        if (qualifier == null || !hasCategory(rows, "Table sort")) {
+        if (!hasTableForm(rows) || qualifier == null || !hasCategory(rows, "Table sort")) {
             IPropertySource source = propertySource(target);
             if (source != null) {
                 IPropertyDescriptor[] descriptors = safeDescriptors(source);
@@ -175,6 +197,12 @@ final class ObjectInsightCollector {
                         }
                         String text = descriptorText(descriptor);
                         Object value = safePropertyValue(source, descriptor);
+                        if (!hasTableForm(rows) && contains(text, "form")) {
+                            String formatted = formatGeneralValue(value, new IdentityHashMap<Object, Boolean>(), 0);
+                            if (formatted.length() > 0 && !contains(formatted.toLowerCase(Locale.ROOT), "@")) {
+                                rows.add(new InsightRow("Table", "Form", "", shortText(formatted)));
+                            }
+                        }
                         if (qualifier == null && (contains(text, "qualification") || contains(text, "qualifier"))) {
                             String formatted = formatGeneralValue(value, new IdentityHashMap<Object, Boolean>(), 0);
                             if (formatted.length() > 0) {
@@ -196,6 +224,54 @@ final class ObjectInsightCollector {
                 }
             }
         }
+    }
+
+    private boolean isTableCandidate(Object target, Object field, Object treeProps, Object sortProps, TableFieldLimit limit) {
+        if (treeProps != null || sortProps != null || limit != null) {
+            return true;
+        }
+        String targetClass = target == null ? "" : target.getClass().getName();
+        String fieldClass = field == null ? "" : field.getClass().getName();
+        return targetClass.indexOf("UITable") >= 0
+                || targetClass.indexOf("TableField") >= 0
+                || fieldClass.indexOf("TableField") >= 0;
+    }
+
+    private void addTableSourceRows(List<InsightRow> rows, Object treeProps, TableFieldLimit limit) {
+        String form = firstNonEmpty(
+                safeString(callFirst(treeProps, "getForm")),
+                limit == null ? "" : safeString(limit.getForm()));
+        String server = firstNonEmpty(
+                safeString(callFirst(treeProps, "getServer")),
+                limit == null ? "" : safeString(limit.getServer()));
+        String sampleForm = firstNonEmpty(
+                safeString(callFirst(treeProps, "getSampleForm")),
+                limit == null ? "" : safeString(limit.getSampleForm()));
+        String sampleServer = firstNonEmpty(
+                safeString(callFirst(treeProps, "getSampleServer")),
+                limit == null ? "" : safeString(limit.getSampleServer()));
+
+        if (server.length() > 0) {
+            rows.add(new InsightRow("Table", "Server", "", server));
+        }
+        if (form.length() > 0) {
+            rows.add(new InsightRow("Table", "Form", "", form));
+        }
+        if (sampleServer.length() > 0 && !sampleServer.equals(server)) {
+            rows.add(new InsightRow("Table", "Sample server", "", sampleServer));
+        }
+        if (sampleForm.length() > 0 && !sampleForm.equals(form)) {
+            rows.add(new InsightRow("Table", "Sample form", "", sampleForm));
+        }
+    }
+
+    private TableFieldLimit tableLimit(Object field, Object target) {
+        Object limit = callFirst(field, "getFieldLimit");
+        if (limit instanceof TableFieldLimit) {
+            return (TableFieldLimit) limit;
+        }
+        limit = callFirst(target, "getFieldLimit");
+        return limit instanceof TableFieldLimit ? (TableFieldLimit) limit : null;
     }
 
     private QualifierInfo firstQualifier(Object treeProps, Object sortProps, Object field, Object target) {
@@ -225,6 +301,7 @@ final class ObjectInsightCollector {
         if (!(columns instanceof Collection)) {
             return;
         }
+        List<Object> sorted = new ArrayList<Object>();
         int count = 0;
         for (Object column : (Collection<Object>) columns) {
             if (column == null || count++ >= MAX_COLLECTION_ITEMS) {
@@ -232,9 +309,27 @@ final class ObjectInsightCollector {
             }
             int sequence = intValue(callFirst(column, "getSortSequence"), 0);
             long direction = longValue(callFirst(column, "getSortDirection"), 0L);
-            if (sequence <= 0 && direction == 0L) {
-                continue;
+            if (sequence > 0 || direction != 0L) {
+                sorted.add(column);
             }
+        }
+        Collections.sort(sorted, new Comparator<Object>() {
+            @Override
+            public int compare(Object left, Object right) {
+                int a = intValue(callFirst(left, "getSortSequence"), Integer.MAX_VALUE);
+                int b = intValue(callFirst(right, "getSortSequence"), Integer.MAX_VALUE);
+                if (a != b) {
+                    return a < b ? -1 : 1;
+                }
+                long ao = longValue(callFirst(left, "getColumnOrder"), 0L);
+                long bo = longValue(callFirst(right, "getColumnOrder"), 0L);
+                return ao == bo ? 0 : (ao < bo ? -1 : 1);
+            }
+        });
+
+        for (Object column : sorted) {
+            int sequence = intValue(callFirst(column, "getSortSequence"), 0);
+            long direction = longValue(callFirst(column, "getSortDirection"), 0L);
             String label = firstNonEmpty(
                     safeString(callFirst(column, "getColumnLabel")),
                     safeString(callFirst(column, "getColumnName")),
@@ -243,8 +338,12 @@ final class ObjectInsightCollector {
             String id = firstNonEmpty(
                     safeString(callFirst(column, "getDataFieldID")),
                     safeString(callFirst(column, "getColumnID")));
-            String value = "Sequence " + sequence + ", " + sortDirectionText(direction);
-            rows.add(new InsightRow("Table sort", label, id, value));
+            List<String> parts = new ArrayList<String>();
+            parts.add("Column " + label);
+            if (direction != 0L) {
+                parts.add(sortDirectionText(direction));
+            }
+            rows.add(new InsightRow("Table sort", sequence > 0 ? "Sort " + sequence : "Sort", id, join(parts, ", ")));
         }
     }
 
@@ -309,6 +408,15 @@ final class ObjectInsightCollector {
         return added;
     }
 
+    private boolean hasTableForm(List<InsightRow> rows) {
+        for (InsightRow row : rows) {
+            if ("Table".equals(row.category) && "Form".equals(row.name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean hasTableQualification(List<InsightRow> rows) {
         for (InsightRow row : rows) {
             if ("Table".equals(row.category) && "Qualification".equals(row.name)) {
@@ -339,17 +447,16 @@ final class ObjectInsightCollector {
             name = "Column";
         }
         List<String> parts = new ArrayList<String>();
+        parts.add("Column " + name);
         if (order.length() > 0) {
-            parts.add("Order " + order);
-        }
-        if (sequence.length() > 0) {
-            parts.add("Sequence " + sequence);
+            parts.add("Column order " + order);
         }
         if (sortDir.length() > 0) {
             Long dir = toLong(sortDir);
             parts.add(dir == null ? sortDir : sortDirectionText(dir.longValue()));
         }
-        rows.add(new InsightRow("Table sort", name, oid, join(parts, ", ")));
+        String rowName = sequence.length() > 0 ? "Sort " + sequence : "Sort";
+        rows.add(new InsightRow("Table sort", rowName, oid, join(parts, ", ")));
         return true;
     }
 
