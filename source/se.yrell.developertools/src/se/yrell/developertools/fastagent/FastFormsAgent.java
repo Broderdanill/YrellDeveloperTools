@@ -70,18 +70,16 @@ public final class FastFormsAgent {
             bootJar.deleteOnExit();
             java.util.jar.JarOutputStream out = new java.util.jar.JarOutputStream(new java.io.FileOutputStream(bootJar));
             try {
-                java.util.jar.JarEntry entry = new java.util.jar.JarEntry("se/yrell/developertools/fastagent/FastFormsBridge.class");
-                out.putNextEntry(entry);
-                byte[] buf = new byte[8192];
-                int n;
-                try {
-                    while ((n = in.read(buf)) >= 0) out.write(buf, 0, n);
-                } finally {
-                    in.close();
-                }
-                out.closeEntry();
+                // FastFormsBridge is appended to bootstrap so transformed BMC bundle classes can call it.
+                // Include its nested/anonymous helper classes as well; otherwise the bridge can fail in
+                // static initialization with NoClassDefFoundError, which aborts DevStudio startup.
+                addBootstrapClass(out, "se/yrell/developertools/fastagent/FastFormsBridge.class");
+                addBootstrapClass(out, "se/yrell/developertools/fastagent/FastFormsBridge$NameListCacheEntry.class");
+                addBootstrapClass(out, "se/yrell/developertools/fastagent/FastFormsBridge$1.class");
+                addBootstrapClass(out, "se/yrell/developertools/fastagent/FastFormsBridge$2.class");
             } finally {
                 out.close();
+                try { in.close(); } catch (Throwable ignored) {}
             }
 
             jf = new JarFile(bootJar);
@@ -91,6 +89,23 @@ public final class FastFormsAgent {
             // Do not use FastFormsBridge here; if bootstrap append failed it may not be visible to BMC classes.
             System.err.println("[Yrell Developer Tools FastForms Agent] could not append bridge-only jar to bootstrap class loader: " + t);
             try { if (jf != null) jf.close(); } catch (Throwable ignored) {}
+        }
+    }
+
+
+    private static void addBootstrapClass(java.util.jar.JarOutputStream out, String resourceName) throws java.io.IOException {
+        java.io.InputStream classIn = FastFormsAgent.class.getResourceAsStream("/" + resourceName);
+        if (classIn == null) {
+            throw new java.io.FileNotFoundException(resourceName + " was not found in agent jar");
+        }
+        try {
+            out.putNextEntry(new java.util.jar.JarEntry(resourceName));
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = classIn.read(buf)) >= 0) out.write(buf, 0, n);
+            out.closeEntry();
+        } finally {
+            try { classIn.close(); } catch (Throwable ignored) {}
         }
     }
 
