@@ -1,4 +1,4 @@
-# Yrell Developer Tools 0.1.29
+# Yrell Developer Tools 0.1.30
 
 A single Eclipse/Developer Studio plugin for BMC Helix Developer Studio helper functions.
 
@@ -101,9 +101,9 @@ Values:
 - `2` = Overlay
 - `4` = Custom
 
-This feature is intended to keep object lists focused on the configured customization types. In 0.1.29 the configured values are authoritative, so Base is not accepted by the runtime filters unless `0` is included in the setting.
+This feature is intended to keep object lists focused on the configured customization types. In 0.1.30 the plugin also hooks `ARBaseNamedListProvider.getPartialObjects(...)` so Active Links, Filters and similar object lists can ask the server for names matching the configured Object Property overlay values before partial objects are loaded. This is intended to avoid the slow pattern where Developer Studio first loads all objects and only filters the UI afterwards. The configured values are authoritative, so Base is not accepted unless `0` is included in the setting.
 
-Important: this uses OSGi weaving. To avoid loading Base objects at the server-query level, Developer Studio must load this plugin before BMC's object-list provider classes are loaded. After enabling/disabling this setting, restart Developer Studio with `-clean`. If those BMC classes were already loaded before the hook was installed, the plugin can still filter displayed results, but it cannot retroactively prevent the earlier server fetch in that already-started session.
+Important: this uses OSGi weaving. To avoid loading Base objects at the server-query level, Developer Studio must load this plugin before BMC's object-list provider classes are loaded. After enabling/disabling this setting, restart Developer Studio with `-clean`. If those BMC classes were already loaded before the hook was installed, the plugin can still filter displayed results, but it cannot retroactively prevent the earlier server fetch in that already-started session. With debug logging enabled you should see log lines such as `server-side Fast object list filter used for ...`; if you only see UI filtering, the server-side hook did not run early enough or that object type uses a different provider path.
 
 ## Keepalive
 

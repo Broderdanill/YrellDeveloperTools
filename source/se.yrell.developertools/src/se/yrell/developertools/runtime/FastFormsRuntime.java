@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -21,6 +22,7 @@ import se.yrell.developertools.ToolsPreferences;
 /** Helper methods called from transformed BMC classes. This class is made visible to BMC class loaders via bootstrap append. */
 public final class FastFormsRuntime {
     private static final int OVERLAY_PROP_FIELD_ID = 30086;
+    private static final int OBJECT_OVERLAY_PROP_ID = 90015;
     private static final int AR_REL_OP_EQUAL = 1;
     private static final int AR_COND_OP_AND = 1;
     private static final int AR_COND_OP_OR = 2;
@@ -427,6 +429,136 @@ public final class FastFormsRuntime {
             if (isDebug()) writeStack(t);
             return qualifier;
         }
+    }
+
+
+    /**
+     * Called from ARBaseNamedListProvider.getPartialObjects(...). This is the important fast path
+     * for object-list providers such as Active Links, Filters and Escalations. Without this hook
+     * Developer Studio first asks the server for every object and only filters the UI afterwards.
+     * Here we ask the server for names matching the configured object-property overlay values first
+     * and then load partial objects only for those names.
+     */
+    public static Object getPartialObjectsWithServerCustomizationFilter(Object provider, Object existingNameList, long since, Object criteria) {
+        if (!isEnabled() || !serverFilter()) return null;
+        Set<Integer> values = allowedValues();
+        if (values.contains(Integer.valueOf(0))) return null;
+        if (!isCustomizableProvider(provider)) return null;
+
+        try {
+            Object store = invokeNoArg(provider, "getStore");
+            Object type = invokeNoArg(provider, "getType");
+            if (store == null || type == null) return null;
+
+            List filteredNames = getNamesByObjectPropertyMap(store, type, since, values);
+            if (filteredNames == null) return null;
+
+            if (existingNameList instanceof List && !((List) existingNameList).isEmpty()) {
+                filteredNames = intersectPreservingOrder(filteredNames, (List) existingNameList);
+            }
+
+            Method partial = findGetPartialObjectListMethod(store.getClass(), type, criteria);
+            if (partial == null) {
+                debug("getPartialObjectList method not found on " + safeClassName(store));
+                return null;
+            }
+            partial.setAccessible(true);
+            Object result = partial.invoke(store, type, filteredNames, Long.valueOf(since), criteria);
+            if (result != null) {
+                logAlways("server-side Fast object list filter used for " + safeClassName(provider) +
+                          ": names=" + filteredNames.size() + ", values=" + values);
+                return result;
+            }
+            return null;
+        } catch (Throwable t) {
+            logAlways("could not run server-side Fast object list filter for " + safeClassName(provider) + ": " + t);
+            if (isDebug()) writeStack(t);
+            return null;
+        }
+    }
+
+    private static List getNamesByObjectPropertyMap(Object store, Object type, long since, Set<Integer> values) throws Exception {
+        Method m = findNameListWithObjectPropertyMapMethod(store.getClass());
+        if (m == null) return null;
+        m.setAccessible(true);
+
+        LinkedHashSet out = new LinkedHashSet();
+        for (Integer v : values) {
+            Object props = buildObjectPropertyMap(store.getClass().getClassLoader(), v.intValue());
+            Object raw = m.invoke(store, type, null, Long.valueOf(since), props);
+            if (raw instanceof Iterable) {
+                for (Object name : (Iterable) raw) {
+                    if (name != null) out.add(name);
+                }
+            }
+        }
+        return new ArrayList(out);
+    }
+
+    private static Object buildObjectPropertyMap(ClassLoader cl, int overlayValue) throws Exception {
+        Class<?> mapClass = Class.forName("com.bmc.arsys.api.ObjectPropertyMap", false, cl);
+        Class<?> valueClass = Class.forName("com.bmc.arsys.api.Value", false, cl);
+        Object map = mapClass.getConstructor().newInstance();
+        Object value = valueClass.getConstructor(int.class).newInstance(overlayValue);
+        Method put = findMethod(mapClass, "put", Object.class, Object.class);
+        if (put == null) put = findMethodByName(mapClass, "put", 2);
+        if (put == null) throw new NoSuchMethodException("ObjectPropertyMap.put");
+        put.setAccessible(true);
+        put.invoke(map, Integer.valueOf(OBJECT_OVERLAY_PROP_ID), value);
+        return map;
+    }
+
+    private static List intersectPreservingOrder(List filteredNames, List existingNames) {
+        try {
+            HashSet existing = new HashSet(existingNames);
+            ArrayList out = new ArrayList(filteredNames.size());
+            for (Object name : filteredNames) if (existing.contains(name)) out.add(name);
+            return out;
+        } catch (Throwable t) {
+            return filteredNames;
+        }
+    }
+
+    private static Method findNameListWithObjectPropertyMapMethod(Class<?> storeClass) {
+        for (Class<?> c = storeClass; c != null; c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                if (isDependentNameListWithObjectPropertyMap(m)) return m;
+            }
+        }
+        for (Method m : storeClass.getMethods()) {
+            if (isDependentNameListWithObjectPropertyMap(m)) return m;
+        }
+        return null;
+    }
+
+    private static boolean isDependentNameListWithObjectPropertyMap(Method m) {
+        if (!"getNameList".equals(m.getName())) return false;
+        Class<?>[] p = m.getParameterTypes();
+        return p.length == 4
+            && p[1] == String.class
+            && (p[2] == Long.TYPE || p[2] == Long.class)
+            && p[3].getName().equals("com.bmc.arsys.api.ObjectPropertyMap");
+    }
+
+    private static Method findGetPartialObjectListMethod(Class<?> storeClass, Object type, Object criteria) {
+        for (Class<?> c = storeClass; c != null; c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                if (isGetPartialObjectListMethod(m)) return m;
+            }
+        }
+        for (Method m : storeClass.getMethods()) {
+            if (isGetPartialObjectListMethod(m)) return m;
+        }
+        return null;
+    }
+
+    private static boolean isGetPartialObjectListMethod(Method m) {
+        if (!"getPartialObjectList".equals(m.getName())) return false;
+        Class<?>[] p = m.getParameterTypes();
+        return p.length == 4
+            && java.util.List.class.isAssignableFrom(p[1])
+            && (p[2] == Long.TYPE || p[2] == Long.class)
+            && p[3].getName().equals("com.bmc.arsys.api.ObjectBaseCriteria");
     }
 
 
