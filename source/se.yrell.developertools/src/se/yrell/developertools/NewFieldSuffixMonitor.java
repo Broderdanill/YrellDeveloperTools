@@ -267,21 +267,37 @@ public final class NewFieldSuffixMonitor {
                 return;
             }
             String cleaned = current.substring(0, current.length() - SUFFIX.length());
-            if (existingNames != null && existingNames.contains(cleaned)) {
-                return;
-            }
-            field.setName(cleaned);
-            field.setNewName(cleaned);
+            String unique = makeUniqueCleanName(cleaned, existingNames);
+            field.setName(unique);
+            field.setNewName(unique);
             field.setDirty(true);
             try {
-                field.fireChange(new FieldChangeEvent(field, "Name", current, cleaned));
+                field.fireChange(new FieldChangeEvent(field, "Name", current, unique));
+                field.fireChange(new FieldChangeEvent(field, "Database", current, unique));
+                field.fireChange(new FieldChangeEvent(field, "Database Name", current, unique));
             } catch (Throwable ignored) {
                 // Some Developer Studio versions refresh from the model without this.
             }
-            Log.info("Removed __c from NEW field '" + current + "' -> '" + cleaned + "'.");
+            if (existingNames != null) {
+                existingNames.add(unique);
+            }
+            Log.info("Removed __c from NEW field database name '" + current + "' -> '" + unique + "'.");
         } catch (Throwable t) {
             Log.warn("Could not remove __c from NEW field: " + t.getMessage());
         }
+    }
+
+    private static String makeUniqueCleanName(String baseName, Set<String> existingNames) {
+        if (baseName == null || baseName.length() == 0 || existingNames == null || !existingNames.contains(baseName)) {
+            return baseName;
+        }
+        for (int i = 1; i < 10000; i++) {
+            String candidate = baseName + " " + i;
+            if (!existingNames.contains(candidate)) {
+                return candidate;
+            }
+        }
+        return baseName;
     }
 
     private static boolean isNewModelObject(Object object) {

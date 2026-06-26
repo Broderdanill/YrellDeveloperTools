@@ -178,13 +178,19 @@ final class ObjectInsightCollector {
                         if (qualifier == null && (contains(text, "qualification") || contains(text, "qualifier"))) {
                             String formatted = formatGeneralValue(value, new IdentityHashMap<Object, Boolean>(), 0);
                             if (formatted.length() > 0) {
-                                rows.add(new InsightRow("Table", "Qualification", "", formatted));
-                                qualifier = new QualifierInfo(); // marker: avoid adding more fallbacks
+                                if (addStructuredTableTextRows(rows, formatted, true)) {
+                                    qualifier = new QualifierInfo(); // marker: avoid adding more fallbacks
+                                } else {
+                                    rows.add(new InsightRow("Table", "Qualification", "", cleanQualificationText(formatted)));
+                                    qualifier = new QualifierInfo(); // marker: avoid adding more fallbacks
+                                }
                             }
                         }
                         if (!hasCategory(rows, "Table sort") && (contains(text, "sort") || contains(text, "level"))) {
                             String formatted = formatGeneralValue(value, new IdentityHashMap<Object, Boolean>(), 0);
-                            addTextRows(rows, "Table sort", formatted);
+                            if (!addStructuredTableTextRows(rows, formatted, false)) {
+                                addTextRows(rows, "Table sort", formatted);
+                            }
                         }
                     }
                 }
@@ -254,6 +260,172 @@ final class ObjectInsightCollector {
             }
         }
     }
+
+    /**
+     * Developer Studio's table/sort property objects often have a dense toString()
+     * like "... Qualification nullColumns [Status = OID = 123Name = Login Name...".
+     * Turn that into readable Object Insight rows instead of one long line.
+     */
+    private boolean addStructuredTableTextRows(List<InsightRow> rows, String text, boolean allowQualification) {
+        if (text == null) {
+            return false;
+        }
+        String compact = text.replace("\r\n", "\n").replace('\r', '\n').trim();
+        if (compact.length() == 0) {
+            return false;
+        }
+        String lower = compact.toLowerCase(Locale.ROOT);
+        boolean added = false;
+
+        int columnsPos = lower.indexOf("columns");
+        if (allowQualification && lower.indexOf("qualification") >= 0 && !hasTableQualification(rows)) {
+            int qPos = lower.indexOf("qualification");
+            int qStart = qPos + "qualification".length();
+            int qEnd = columnsPos > qStart ? columnsPos : compact.length();
+            String q = cleanQualificationText(compact.substring(qStart, qEnd));
+            if (q.length() > 0) {
+                rows.add(new InsightRow("Table", "Qualification", "", q));
+                added = true;
+            }
+        }
+
+        if (columnsPos >= 0) {
+            String colText = compact.substring(columnsPos + "columns".length()).trim();
+            String[] chunks = colText.split("\\[");
+            for (int i = 0; i < chunks.length; i++) {
+                String chunk = chunks[i] == null ? "" : chunks[i].trim();
+                if (chunk.length() == 0) {
+                    continue;
+                }
+                int close = chunk.indexOf(']');
+                if (close >= 0) {
+                    chunk = chunk.substring(0, close).trim();
+                }
+                if (addStructuredSortRow(rows, chunk)) {
+                    added = true;
+                }
+            }
+        }
+        return added;
+    }
+
+    private boolean hasTableQualification(List<InsightRow> rows) {
+        for (InsightRow row : rows) {
+            if ("Table".equals(row.category) && "Qualification".equals(row.name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean addStructuredSortRow(List<InsightRow> rows, String chunk) {
+        if (chunk == null) {
+            return false;
+        }
+        String text = chunk.trim();
+        if (text.length() == 0) {
+            return false;
+        }
+        String oid = extractStructuredValue(text, "OID");
+        String name = firstNonEmpty(extractStructuredValue(text, "Name"), extractColumnPrefix(text));
+        String order = extractStructuredValue(text, "Order");
+        String sequence = extractStructuredValue(text, "Sequence");
+        String sortDir = firstNonEmpty(extractStructuredValue(text, "Sort dir"), extractStructuredValue(text, "Sort direction"), extractStructuredValue(text, "Direction"));
+
+        if (name.length() == 0 && oid.length() == 0 && order.length() == 0 && sequence.length() == 0 && sortDir.length() == 0) {
+            return false;
+        }
+        if (name.length() == 0) {
+            name = "Column";
+        }
+        List<String> parts = new ArrayList<String>();
+        if (order.length() > 0) {
+            parts.add("Order " + order);
+        }
+        if (sequence.length() > 0) {
+            parts.add("Sequence " + sequence);
+        }
+        if (sortDir.length() > 0) {
+            Long dir = toLong(sortDir);
+            parts.add(dir == null ? sortDir : sortDirectionText(dir.longValue()));
+        }
+        rows.add(new InsightRow("Table sort", name, oid, join(parts, ", ")));
+        return true;
+    }
+
+    private String extractColumnPrefix(String text) {
+        int firstKey = firstKeyPosition(text);
+        String prefix = firstKey <= 0 ? text : text.substring(0, firstKey);
+        prefix = prefix.replace('[', ' ').replace(']', ' ').trim();
+        while (prefix.endsWith("=") || prefix.endsWith(":")) {
+            prefix = prefix.substring(0, prefix.length() - 1).trim();
+        }
+        return prefix;
+    }
+
+    private int firstKeyPosition(String text) {
+        String lower = text.toLowerCase(Locale.ROOT);
+        int best = -1;
+        String[] keys = structuredKeys();
+        for (int i = 0; i < keys.length; i++) {
+            int pos = lower.indexOf(keys[i].toLowerCase(Locale.ROOT));
+            if (pos >= 0 && (best < 0 || pos < best)) {
+                best = pos;
+            }
+        }
+        return best;
+    }
+
+    private String extractStructuredValue(String text, String key) {
+        if (text == null || key == null) {
+            return "";
+        }
+        String lower = text.toLowerCase(Locale.ROOT);
+        String needle = key.toLowerCase(Locale.ROOT);
+        int keyPos = lower.indexOf(needle);
+        if (keyPos < 0) {
+            return "";
+        }
+        int start = keyPos + key.length();
+        int equals = text.indexOf('=', start);
+        if (equals >= 0 && equals - start < 8) {
+            start = equals + 1;
+        }
+        int end = text.length();
+        String[] keys = structuredKeys();
+        for (int i = 0; i < keys.length; i++) {
+            if (keys[i].equalsIgnoreCase(key)) {
+                continue;
+            }
+            int pos = lower.indexOf(keys[i].toLowerCase(Locale.ROOT), start);
+            if (pos >= 0 && pos < end) {
+                end = pos;
+            }
+        }
+        String value = text.substring(start, end).trim();
+        while (value.startsWith("=") || value.startsWith(":")) {
+            value = value.substring(1).trim();
+        }
+        while (value.endsWith(",") || value.endsWith(";") || value.endsWith("]")) {
+            value = value.substring(0, value.length() - 1).trim();
+        }
+        return value;
+    }
+
+    private String[] structuredKeys() {
+        return new String[] { "Sort direction", "Sort dir", "Sequence", "Order", "Name", "OID", "Column ID", "Field ID", "Direction" };
+    }
+
+    private String cleanQualificationText(String text) {
+        String q = safeString(text);
+        q = q.replaceFirst("(?i)^qualification\\s*", "").trim();
+        q = q.replaceFirst("(?i)^=", "").trim();
+        if (q.length() == 0 || "null".equalsIgnoreCase(q)) {
+            return "No qualification";
+        }
+        return shortText(q);
+    }
+
 
     private IStore findStore(Object target, Object field) {
         Object store = callFirst(target, "getStore");
@@ -387,7 +559,7 @@ final class ObjectInsightCollector {
             }
         } catch (Throwable ignored) {
         }
-        return shortText(safeString(qualifier));
+        return cleanQualificationText(safeString(qualifier));
     }
 
     private boolean isPermissionDescriptor(IPropertyDescriptor descriptor) {
@@ -535,16 +707,24 @@ final class ObjectInsightCollector {
     }
 
     private long longValue(Object value, long fallback) {
+        Long parsed = toLong(value);
+        return parsed == null ? fallback : parsed.longValue();
+    }
+
+    private Long toLong(Object value) {
         if (value instanceof Number) {
-            return ((Number) value).longValue();
+            return Long.valueOf(((Number) value).longValue());
         }
         try {
             if (value != null) {
-                return Long.parseLong(String.valueOf(value).trim());
+                String s = String.valueOf(value).trim();
+                if (s.length() > 0) {
+                    return Long.valueOf(Long.parseLong(s));
+                }
             }
         } catch (Throwable ignored) {
         }
-        return fallback;
+        return null;
     }
 
     private boolean isSimple(Object value) {

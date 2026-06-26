@@ -1,4 +1,4 @@
-# Yrell Developer Tools 0.1.38
+# Yrell Developer Tools 0.1.40
 
 Developer Studio helper plugin for BMC Helix/AR System Developer Studio.
 
@@ -6,8 +6,9 @@ Developer Studio helper plugin for BMC Helix/AR System Developer Studio.
 
 1. Close Developer Studio.
 2. Remove older `se.yrell.developertools_*.jar` from `x64/plugins`.
-3. Copy `install/se.yrell.developertools_0.1.38.jar` to `x64/plugins`.
-4. Start Developer Studio with `-clean -consoleLog`.
+3. Copy `install/se.yrell.developertools_0.1.40.jar` to `x64/plugins`.
+4. If Fast object lists is used as Java agent, update `DeveloperStudio.ini` to point at `se.yrell.developertools_0.1.40.jar`.
+5. Start Developer Studio with `-clean -consoleLog`.
 
 Fast object lists still requires the same jar to be loaded with `-javaagent` in `DeveloperStudio.ini` if you want the initial server-side object-list request to be filtered before BMC classes load.
 
@@ -20,6 +21,8 @@ All features are disabled by default and must be enabled in:
 ### Custom suffix cleanup
 
 Removes BMC's automatic `__c` suffix while new objects/fields are created. It does not run post-save cleanup and does not rename existing saved objects.
+
+0.1.40 also cleans `__c` if Developer Studio updates the database name from a changed label on a new unsaved field.
 
 ### Default naming
 
@@ -51,7 +54,7 @@ Current display:
 
 - Field permissions as one row per group, with group name, group ID and permission value.
 - Table qualification for selected table fields.
-- Table sort columns for selected table fields.
+- Table sort columns for selected table fields, split into readable rows instead of one long raw property string.
 
 The view keeps the last real Developer Studio selection as its own selection provider so the normal Properties view should not clear just because Object Insight receives focus.
 
@@ -67,8 +70,10 @@ The command is visible only when:
 
 It removes only the current view instance. The AR field remains on the form and remains in the other views.
 
+0.1.40 uses BMC's own `RemoveFieldFromViewCommand` path when available so the current form view refreshes visually immediately and participates in the editor command stack.
+
 ## Build notes
 
-- Bundle version: `0.1.38`
+- Bundle version: `0.1.40`
 - Java bytecode: 17 / major version 61
 - Same jar can be used both as Eclipse plugin and Fast object lists Java agent.

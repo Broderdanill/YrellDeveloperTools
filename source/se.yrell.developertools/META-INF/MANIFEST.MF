@@ -2,13 +2,13 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Yrell Developer Tools
 Bundle-SymbolicName: se.yrell.developertools;singleton:=true
-Bundle-Version: 0.1.38
+Bundle-Version: 0.1.40
 Bundle-Vendor: Daniel Yrell
 Bundle-Activator: se.yrell.developertools.ToolsActivator
 Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .
 Bundle-RequiredExecutionEnvironment: JavaSE-17
-Require-Bundle: org.eclipse.core.runtime,org.eclipse.core.commands,org.eclipse.core.expressions,org.eclipse.ui,org.eclipse.jface,org.eclipse.swt,org.eclipse.osgi,org.objectweb.asm,org.objectweb.asm.commons,org.eclipse.ui.views,com.bmc.arsys.studio.model,com.bmc.arsys.studio.api,com.bmc.arsys.studio.commonui,com.bmc.arsys.studio.documenteditor,com.bmc.arsys.studio.ui
+Require-Bundle: org.eclipse.core.runtime,org.eclipse.core.commands,org.eclipse.core.expressions,org.eclipse.ui,org.eclipse.jface,org.eclipse.swt,org.eclipse.osgi,org.objectweb.asm,org.objectweb.asm.commons,org.eclipse.ui.views,com.bmc.arsys.studio.model,com.bmc.arsys.studio.api,com.bmc.arsys.studio.commonui,com.bmc.arsys.studio.documenteditor,com.bmc.arsys.studio.ui,org.eclipse.gef
 Import-Package: org.osgi.framework;version="1.8.0",org.osgi.framework.hooks.weaving;version="1.1.0",org.osgi.service.prefs;version="1.1.0"
 Export-Package: se.yrell.developertools.runtime
 Automatic-Module-Name: se.yrell.developertools

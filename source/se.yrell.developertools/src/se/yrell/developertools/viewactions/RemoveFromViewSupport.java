@@ -1,11 +1,18 @@
 package se.yrell.developertools.viewactions;
 
 import java.lang.reflect.Method;
+import java.util.Collections;
 
+import org.eclipse.gef.GraphicalViewer;
+import org.eclipse.gef.commands.CommandStack;
+import org.eclipse.gef.commands.CompoundCommand;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Shell;
 
+import com.bmc.arsys.studio.model.store.IFieldObject;
 import com.bmc.arsys.studio.ui.common.properties.AddRemoveViewsForFieldDetails;
 import com.bmc.arsys.studio.ui.editors.form.model.FormViewLayout;
+import com.bmc.arsys.studio.ui.editors.form.model.FormViewManager;
 import com.bmc.arsys.studio.ui.editors.form.model.UIField;
 
 import se.yrell.developertools.Log;
@@ -40,26 +47,89 @@ public final class RemoveFromViewSupport {
             return false;
         }
         try {
+            IFieldObject arField = field.getField();
+            if (arField == null) {
+                return false;
+            }
+            int fieldId = arField.getFieldID();
             AddRemoveViewsForFieldDetails details = field.getViews();
             if (details == null || details.currentView == null || details.selectedViews == null || details.selectedViews.isEmpty()) {
                 return false;
             }
             FormViewLayout currentView = details.currentView;
-            Integer vui = Integer.valueOf(currentView.getVui());
 
+            if (executeBmcRemoveCommand(currentView, fieldId)) {
+                refreshCurrentView(currentView, fieldId);
+                Log.info("Removed selected field " + fieldId + " from current view " + currentView.getVui() + " using BMC RemoveFieldFromViewCommand.");
+                return true;
+            }
+
+            // Fallback for Developer Studio variants where the GEF command path is not available.
+            Integer vui = Integer.valueOf(currentView.getVui());
             details.addedViews.clear();
             details.removedViews.clear();
             details.removedViews.add(vui);
             field.setViews(details);
+            currentView.removeUIField(fieldId);
             safeCall(field, "setDirty", Boolean.TRUE);
             safeCall(field, "validate");
-            Object formView = safeCall(field, "getFormView");
-            safeCall(formView, "validate");
-            Log.info("Removed selected field from current view VUI " + vui + "; field remains in other views.");
+            safeCall(currentView, "reorderChildren");
+            safeCall(currentView, "validate");
+            refreshCurrentView(currentView, fieldId);
+            Log.info("Removed selected field " + fieldId + " from current view VUI " + vui + " using fallback update.");
             return true;
         } catch (Throwable t) {
             Log.error("Could not remove selected field from current view", t);
             return false;
+        }
+    }
+
+    private static boolean executeBmcRemoveCommand(FormViewLayout currentView, int fieldId) {
+        try {
+            CompoundCommand command = new CompoundCommand("Remove from view");
+            FormViewManager.populateCommandsToRemoveFieldsFromView(command, currentView, Collections.singletonList(Integer.valueOf(fieldId)));
+            if (command.isEmpty() || !command.canExecute()) {
+                return false;
+            }
+            GraphicalViewer viewer = currentView.getGraphicalViewer();
+            if (viewer != null && viewer.getEditDomain() != null && viewer.getEditDomain().getCommandStack() != null) {
+                CommandStack stack = viewer.getEditDomain().getCommandStack();
+                stack.execute(command);
+            } else {
+                command.execute();
+            }
+            return true;
+        } catch (Throwable t) {
+            Log.warn("BMC RemoveFieldFromViewCommand path failed, using fallback: " + t.getMessage());
+            return false;
+        }
+    }
+
+    private static void refreshCurrentView(FormViewLayout currentView, int fieldId) {
+        try {
+            currentView.setSelection(Collections.emptyList());
+        } catch (Throwable ignored) {
+        }
+        try {
+            currentView.reorderChildren();
+        } catch (Throwable ignored) {
+        }
+        try {
+            currentView.validate();
+        } catch (Throwable ignored) {
+        }
+        try {
+            GraphicalViewer viewer = currentView.getGraphicalViewer();
+            if (viewer != null) {
+                viewer.deselectAll();
+                viewer.flush();
+                Control control = viewer.getControl();
+                if (control != null && !control.isDisposed()) {
+                    control.redraw();
+                    control.update();
+                }
+            }
+        } catch (Throwable ignored) {
         }
     }
 
