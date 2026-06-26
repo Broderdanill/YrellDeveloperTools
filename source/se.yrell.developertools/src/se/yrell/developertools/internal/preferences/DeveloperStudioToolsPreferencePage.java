@@ -38,7 +38,8 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
     private Label fastFormsAgentStatusLabel;
     private StringFieldEditor fastFormsValuesEditor;
     private BooleanFieldEditor fastFormsDebugEditor;
-    private IntegerFieldEditor keepAliveIntervalEditor;
+    private BooleanFieldEditor keepAliveEnabledEditor;
+    private StringFieldEditor keepAliveIntervalEditor;
 
     public DeveloperStudioToolsPreferencePage() {
         super(GRID);
@@ -69,7 +70,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         addField(defaultTableColumnsEnabledEditor);
         tableColumnPatternEditor = new StringFieldEditor(ToolsConstants.PREF_DEFAULT_NAMES_TABLE_COLUMN_DB_NAME_PATTERN,
                 "Table column pattern", namingGroup);
-        tableColumnPatternEditor.setEmptyStringAllowed(false);
+        tableColumnPatternEditor.setEmptyStringAllowed(true);
         addField(tableColumnPatternEditor);
         addInfo(namingGroup, "Default: col_{remote_form}_{remote_field_name}. Supported tokens: {form}, {remote_form}, {field_name}, {remote_field_name}, {field_id}. The result is normalized to lower-case ASCII with underscores.");
 
@@ -92,7 +93,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         addField(iconHelperEnabledEditor);
         iconCatalogUrlEditor = new StringFieldEditor(ToolsConstants.PREF_PWA_ICON_CATALOG_URL,
                 "CSS icon catalog URL", iconGroup);
-        iconCatalogUrlEditor.setEmptyStringAllowed(false);
+        iconCatalogUrlEditor.setEmptyStringAllowed(true);
         addField(iconCatalogUrlEditor);
         addInfo(iconGroup, "Required for icon preview. Example: https://<midtier>/arsys/pwa/styles.xxxxxxx.css. The icon catalog is preloaded at startup when this URL is set.");
 
@@ -102,22 +103,22 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         addField(fastFormsEnabledEditor);
         fastFormsValuesEditor = new StringFieldEditor(ToolsConstants.PREF_FAST_FORMS_VALUES,
                 "Customization Type values", fastGroup);
-        fastFormsValuesEditor.setEmptyStringAllowed(false);
+        fastFormsValuesEditor.setEmptyStringAllowed(true);
         addField(fastFormsValuesEditor);
         fastFormsDebugEditor = new BooleanFieldEditor(ToolsConstants.PREF_FAST_FORMS_DEBUG,
                 "Debug logging for Fast object lists", fastGroup);
         addField(fastFormsDebugEditor);
-        addImportant(fastGroup, "IMPORTANT: Fast object lists only becomes truly fast when the jar is also loaded as a Java agent before Developer Studio loads BMC list classes. Without -javaagent, Developer Studio can first load all objects and only filter afterwards, which can be slower. Add this line to DeveloperStudio.ini, restart with -clean, then enable this feature:\n-javaagent:<path-to-plugins>/se.yrell.developertools_0.1.32.jar");
+        addImportant(fastGroup, "IMPORTANT: Fast object lists only becomes truly fast when the jar is also loaded as a Java agent before Developer Studio loads BMC list classes. Without -javaagent, Developer Studio can first load all objects and only filter afterwards, which can be slower. Add this line to DeveloperStudio.ini, restart with -clean, then enable this feature:\n-javaagent:<path-to-plugins>/se.yrell.developertools_0.1.33.jar");
         fastFormsAgentStatusLabel = addInfo(fastGroup, fastFormsAgentStatusText());
         addCopyAgentButton(fastGroup);
 
         Composite keepAliveGroup = createGroup(parent, "Keepalive");
-        addField(new BooleanFieldEditor(ToolsConstants.PREF_KEEPALIVE_ENABLED,
-                "Keep AR server sessions alive", keepAliveGroup));
-        keepAliveIntervalEditor = new IntegerFieldEditor(ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS,
+        keepAliveEnabledEditor = new BooleanFieldEditor(ToolsConstants.PREF_KEEPALIVE_ENABLED,
+                "Keep AR server sessions alive", keepAliveGroup);
+        addField(keepAliveEnabledEditor);
+        keepAliveIntervalEditor = new StringFieldEditor(ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS,
                 "Keepalive interval (seconds)", keepAliveGroup);
-        keepAliveIntervalEditor.setValidRange(ToolsConstants.MIN_KEEPALIVE_INTERVAL_SECONDS,
-                ToolsConstants.MAX_KEEPALIVE_INTERVAL_SECONDS);
+        keepAliveIntervalEditor.setEmptyStringAllowed(true);
         addField(keepAliveIntervalEditor);
         addInfo(keepAliveGroup, "When enabled, the plugin periodically calls verifyUser() on already connected AR Server sessions. This is lightweight and does not load object lists or forms. Default interval: 120 seconds.");
     }
@@ -197,7 +198,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         } catch (Throwable ignored) {
             // Fall through to generic example.
         }
-        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.32.jar";
+        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.33.jar";
     }
 
     @Override
@@ -241,15 +242,27 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
             return false;
         }
 
-        int interval = keepAliveIntervalEditor == null ? ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS
-                : keepAliveIntervalEditor.getIntValue();
-        if (interval < ToolsConstants.MIN_KEEPALIVE_INTERVAL_SECONDS
-                || interval > ToolsConstants.MAX_KEEPALIVE_INTERVAL_SECONDS) {
-            MessageDialog.openError(getShell(), "Yrell Developer Tools",
-                    "Keepalive interval must be between "
-                            + ToolsConstants.MIN_KEEPALIVE_INTERVAL_SECONDS + " and "
-                            + ToolsConstants.MAX_KEEPALIVE_INTERVAL_SECONDS + " seconds.");
-            return false;
+        boolean keepAliveEnabled = keepAliveEnabledEditor != null && keepAliveEnabledEditor.getBooleanValue();
+        String intervalText = keepAliveIntervalEditor == null ? "" : keepAliveIntervalEditor.getStringValue().trim();
+        if (keepAliveEnabled) {
+            int interval;
+            try {
+                interval = Integer.parseInt(intervalText);
+            } catch (NumberFormatException e) {
+                MessageDialog.openError(getShell(), "Yrell Developer Tools",
+                        "Keepalive interval must be a number between "
+                                + ToolsConstants.MIN_KEEPALIVE_INTERVAL_SECONDS + " and "
+                                + ToolsConstants.MAX_KEEPALIVE_INTERVAL_SECONDS + " seconds.");
+                return false;
+            }
+            if (interval < ToolsConstants.MIN_KEEPALIVE_INTERVAL_SECONDS
+                    || interval > ToolsConstants.MAX_KEEPALIVE_INTERVAL_SECONDS) {
+                MessageDialog.openError(getShell(), "Yrell Developer Tools",
+                        "Keepalive interval must be between "
+                                + ToolsConstants.MIN_KEEPALIVE_INTERVAL_SECONDS + " and "
+                                + ToolsConstants.MAX_KEEPALIVE_INTERVAL_SECONDS + " seconds.");
+                return false;
+            }
         }
 
         boolean ok = super.performOk();
