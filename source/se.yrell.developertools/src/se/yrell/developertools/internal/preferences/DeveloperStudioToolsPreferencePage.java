@@ -9,6 +9,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Group;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 
@@ -45,80 +46,79 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
     protected void createFieldEditors() {
         Composite parent = getFieldEditorParent();
 
-        addSection(parent, "Custom suffix cleanup");
+        Composite suffixGroup = createGroup(parent, "Custom suffix cleanup");
         addField(new BooleanFieldEditor(ToolsConstants.PREF_REMOVE_CUSTOM_SUFFIX_ENABLED,
-                "Remove BMC's automatic __c suffix", parent));
-        addInfo(parent, "When enabled, proposed object/field/view names are cleaned while you type. Post-save cleanup has been removed to avoid changing saved objects unexpectedly.");
+                "Remove BMC's automatic __c suffix", suffixGroup));
+        addInfo(suffixGroup, "Removes BMC's automatic __c only while new forms/default fields or new fields are created. It does not run post-save cleanup and does not rename existing saved fields.");
 
-        addSection(parent, "Default naming");
+        Composite namingGroup = createGroup(parent, "Default naming");
         addField(new BooleanFieldEditor(ToolsConstants.PREF_DEFAULT_NAMES_TABLE_COLUMN_DB_NAME_ENABLED,
-                "Table columns: set database name automatically", parent));
+                "Table columns: set database name automatically", namingGroup));
         tableColumnPatternEditor = new StringFieldEditor(ToolsConstants.PREF_DEFAULT_NAMES_TABLE_COLUMN_DB_NAME_PATTERN,
-                "Table column pattern", parent);
+                "Table column pattern", namingGroup);
         tableColumnPatternEditor.setEmptyStringAllowed(false);
         addField(tableColumnPatternEditor);
-        addInfo(parent, "Default: col_{remote_form}_{remote_field_name}. Supported tokens: {form}, {remote_form}, {field_name}, {remote_field_name}, {field_id}. The generated database name is normalized to lower-case ASCII with underscores. This section is designed so more default-name rules can be added later as separate checkboxes/patterns.");
+        addInfo(namingGroup, "Default: col_{remote_form}_{remote_field_name}. Supported tokens: {form}, {remote_form}, {field_name}, {remote_field_name}, {field_id}. The result is normalized to lower-case ASCII with underscores.");
 
-        addSection(parent, "Automatic field IDs");
+        Composite fieldIdGroup = createGroup(parent, "Automatic field IDs");
         autoFieldEnabledEditor = new BooleanFieldEditor(ToolsConstants.PREF_AUTO_FIELD_ID_ENABLED,
-                "Enable automatic field ID assignment", parent);
+                "Enable automatic field ID assignment", fieldIdGroup);
         addField(autoFieldEnabledEditor);
-
         developerIdEditor = new StringFieldEditor(ToolsConstants.PREF_AUTO_FIELD_ID_DEVELOPER_ID,
-                "Developer ID (10-21)", parent);
+                "Developer ID (10-21)", fieldIdGroup);
         developerIdEditor.setEmptyStringAllowed(true);
         developerIdEditor.setTextLimit(2);
         addField(developerIdEditor);
-
         addField(new BooleanFieldEditor(ToolsConstants.PREF_AUTO_FIELD_ID_SKIP_PANELS,
-                "Skip panels/pages", parent));
-        addInfo(parent, "Field ID format: <Developer ID><YY><MM><DD><NN>, for example 1226062301. The plugin calculates the next unused value for the current day from the AR metadata form 'field'. If a whole day range is full it rolls to the next day.");
+                "Skip panels/pages", fieldIdGroup));
+        addInfo(fieldIdGroup, "Field ID format: <Developer ID><YY><MM><DD><NN>, for example 1226062301. The plugin calculates the next unused value for the current day from AR System Metadata: field and rolls to the next day if needed.");
 
-        addSection(parent, "PWA icon helper");
+        Composite iconGroup = createGroup(parent, "PWA icon helper");
         addField(new BooleanFieldEditor(ToolsConstants.PREF_PWA_ICON_HELPER_ENABLED,
-                "Show icon picker button next to Icon properties", parent));
+                "Show icon picker button next to Icon properties", iconGroup));
         iconCatalogUrlEditor = new StringFieldEditor(ToolsConstants.PREF_PWA_ICON_CATALOG_URL,
-                "CSS icon catalog URL", parent);
+                "CSS icon catalog URL", iconGroup);
         iconCatalogUrlEditor.setEmptyStringAllowed(false);
         addField(iconCatalogUrlEditor);
-        addInfo(parent, "Required for icon preview. Example: https://<midtier>/arsys/pwa/styles.xxxxxxx.css. The plugin reads d-icon-* classes and embeds referenced dpl-iconfont .woff/.woff2 fonts in the preview.");
+        addInfo(iconGroup, "Required for icon preview. Example: https://<midtier>/arsys/pwa/styles.xxxxxxx.css. The icon catalog is preloaded at startup when this URL is set.");
 
-
-        addSection(parent, "Fast object lists");
+        Composite fastGroup = createGroup(parent, "Fast object lists");
         addField(new BooleanFieldEditor(ToolsConstants.PREF_FAST_FORMS_ENABLED,
-                "Load object lists with Custom/Overlay filter by default", parent));
+                "Load object lists with Custom/Overlay filter by default", fastGroup));
         fastFormsValuesEditor = new StringFieldEditor(ToolsConstants.PREF_FAST_FORMS_VALUES,
-                "Customization Type values", parent);
+                "Customization Type values", fastGroup);
         fastFormsValuesEditor.setEmptyStringAllowed(false);
         addField(fastFormsValuesEditor);
         addField(new BooleanFieldEditor(ToolsConstants.PREF_FAST_FORMS_DEBUG,
-                "Debug logging for Fast object lists", parent));
-        addInfo(parent, "Default: 2,4. Values: 0=Base, 1=Overlaid, 2=Overlay, 4=Custom. The normal recommended value is 2,4 so Base objects are not loaded by default. This replaces the old separate devstudio-fastforms Java agent and requires no devstudio.ini -javaagent line. Restart Developer Studio with -clean after enabling/disabling this feature because the BMC list-provider classes must be woven before they are loaded.");
+                "Debug logging for Fast object lists", fastGroup));
+        addInfo(fastGroup, "Default: 2,4. Values: 0=Base, 1=Overlaid, 2=Overlay, 4=Custom. The configured values are now authoritative, so Base is not accepted unless 0 is included. Restart Developer Studio with -clean after enabling/disabling because BMC list-provider classes must be woven before they are loaded.");
 
-        addSection(parent, "Keepalive");
+        Composite keepAliveGroup = createGroup(parent, "Keepalive");
         addField(new BooleanFieldEditor(ToolsConstants.PREF_KEEPALIVE_ENABLED,
-                "Keep AR server sessions alive", parent));
+                "Keep AR server sessions alive", keepAliveGroup));
         keepAliveIntervalEditor = new IntegerFieldEditor(ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS,
-                "Keepalive interval (seconds)", parent);
+                "Keepalive interval (seconds)", keepAliveGroup);
         keepAliveIntervalEditor.setValidRange(ToolsConstants.MIN_KEEPALIVE_INTERVAL_SECONDS,
                 ToolsConstants.MAX_KEEPALIVE_INTERVAL_SECONDS);
         addField(keepAliveIntervalEditor);
-        addInfo(parent, "When enabled, the plugin periodically calls verifyUser() on already connected AR Server sessions. This is intentionally lightweight and does not load object lists or forms. Default interval: 120 seconds.");
+        addInfo(keepAliveGroup, "When enabled, the plugin periodically calls verifyUser() on already connected AR Server sessions. This is lightweight and does not load object lists or forms. Default interval: 120 seconds.");
     }
 
-    private void addSection(Composite parent, String text) {
-        Label label = new Label(parent, SWT.NONE);
-        label.setText(text);
-        GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
+    private Composite createGroup(Composite parent, String text) {
+        Group group = new Group(parent, SWT.NONE);
+        group.setText(text);
+        group.setLayout(new org.eclipse.swt.layout.GridLayout(2, false));
+        GridData data = new GridData(SWT.FILL, SWT.TOP, true, false);
         data.verticalIndent = 8;
-        label.setLayoutData(data);
+        group.setLayoutData(data);
+        return group;
     }
 
     private void addInfo(Composite parent, String text) {
         Label label = new Label(parent, SWT.WRAP);
         label.setText(text);
         GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
-        data.widthHint = 560;
+        data.widthHint = 760;
         data.verticalIndent = 2;
         label.setLayoutData(data);
     }

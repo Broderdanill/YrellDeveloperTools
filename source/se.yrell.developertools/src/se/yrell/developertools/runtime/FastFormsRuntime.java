@@ -506,11 +506,17 @@ public final class FastFormsRuntime {
     }
 
     private static Set<Integer> allowedValuesFromCheckboxState() {
+        // The preference value is authoritative. The BMC checkbox UI can still report
+        // Base as selected if its controls were created before our default-selection hook
+        // ran. Intersect the visible checkbox state with the configured values so Base
+        // is never shown/accepted unless the user explicitly includes 0 in the setting.
+        Set<Integer> configured = allowedValues();
         Set<String> labels = lastCustomizationCheckboxLabels;
-        if (labels == null || labels.isEmpty()) return allowedValues();
+        if (labels == null || labels.isEmpty()) return configured;
         Set<Integer> out = new HashSet<Integer>();
         for (String label : labels) addAllowedValueForLabel(out, label);
-        if (out.isEmpty()) return allowedValues();
+        out.retainAll(configured);
+        if (out.isEmpty()) return configured;
         return out;
     }
 
@@ -818,7 +824,7 @@ public final class FastFormsRuntime {
     private static boolean hardOverlayListFilter() { return false; }
     private static boolean overlayGateFilter() { return true; }
     private static boolean forceObjectListReject() { return false; }
-    private static boolean allowManualBaseCheckbox() { return true; }
+    private static boolean allowManualBaseCheckbox() { return false; }
     private static boolean deselectBaseCheckbox() { return true; }
 
     private static Set<Integer> allowedValues() {

@@ -1,230 +1,129 @@
-# Yrell Developer Tools 0.1.28
+# Yrell Developer Tools 0.1.29
 
-> 0.1.28: Fixes a startup ClassCircularityError in the integrated Fast object lists weaving by excluding Developer Tools, ASM and OSGi infrastructure classes from the weaving hook. Restart with `-clean` after replacing the jar.
-Yrell Developer Tools is a single drop-in Eclipse/BMC Helix Developer Studio plugin for small productivity fixes and controlled Developer Studio behaviour changes.
+A single Eclipse/Developer Studio plugin for BMC Helix Developer Studio helper functions.
 
-Install only one version of this plugin at a time.
+Install the jar from `install/` into Developer Studio `x64/plugins`, remove older `se.yrell.developertools_*.jar` files, and start Developer Studio once with `-clean -consoleLog`.
 
-## Installation
+Settings are available in:
 
-1. Close Developer Studio.
-2. Remove old plugin jars from `x64/plugins`, for example:
-   - `se.yrell.developertools_*.jar`
-   - `se.yrell.devstudio.keepalive_*.jar`
-   - `devstudio-fastforms-agent.jar` related javaagent setup if you no longer want the old agent.
-3. Copy `install/se.yrell.developertools_0.1.28.jar` to Developer Studio `x64/plugins`.
-4. Start Developer Studio once with `-clean -consoleLog`.
-
-The plugin is compiled as Java 17 bytecode and is intended to run on both JDK 17 and JDK 21.
-
-## Settings
-
-Open:
-
-```text
-Window -> Preferences -> Yrell Developer Tools
-```
+`Window -> Preferences -> Yrell Developer Tools`
 
 ## Custom suffix cleanup
 
-Setting:
+Setting: `Remove BMC's automatic __c suffix`
 
-```text
-Remove BMC's automatic __c suffix
-```
+When enabled, the plugin removes BMC's automatically appended `__c` suffix only during new object/field creation paths. It is intentionally not a post-save cleanup feature.
 
-When enabled, the plugin removes BMC's automatically generated `__c` suffix while new objects are being created in the form designer.
+Affected creation paths:
 
-Current scope:
+- default fields when a new form is created
+- new fields dragged/added to an existing form
+- field-name generation paths where BMC tries to append `__c`
 
-- New fields added to an existing form.
-- Default fields created when a new form is created.
-- Proposed names typed in Developer Studio UI fields.
+Safety behavior:
 
-Safety rules:
-
-- It does not run a post-save cleanup.
-- It does not rename old existing fields just because they already end with `__c`.
-- It only targets creation flows and newly added UI fields.
+- existing saved fields are not scanned or renamed
+- form save/post-save does not rename fields
+- if the clean name already exists, the plugin generates a clean unique name such as `Character Field 1` instead of leaving `Character Field__c`
 
 ## Default naming
 
-Setting:
+Setting: `Table columns: set database name automatically`
 
-```text
-Table columns: set database name automatically
-```
-
-Pattern setting:
-
-```text
-Table column pattern
-```
+Pattern setting: `Table column pattern`
 
 Default pattern:
 
-```text
-col_{remote_form}_{remote_field_name}
-```
+`col_{remote_form}_{remote_field_name}`
 
 Supported tokens:
 
-- `{form}` - current form name.
-- `{remote_form}` - table field target/remote form when Developer Studio exposes it.
-- `{field_name}` - local column field name.
-- `{remote_field_name}` - remote field name when available.
-- `{field_id}` - field id.
+- `{form}`: current form name when available
+- `{remote_form}`: the form that the table points to when available
+- `{field_name}`: local field name
+- `{remote_field_name}`: remote/source field name when available
+- `{field_id}`: field ID when available
 
-The generated value is normalized to lower-case ASCII with underscores. This section is intentionally structured so more default-name rules can be added later as separate checkbox + pattern pairs.
+Generated names are normalized to lower-case ASCII with underscores. This area is structured so future default-name rules can be added as separate checkboxes and patterns.
 
 ## Automatic field IDs
 
-Settings:
+Setting: `Enable automatic field ID assignment`
 
-```text
-Enable automatic field ID assignment
-Developer ID (10-21)
-Skip panels/pages
-```
+Required setting: `Developer ID (10-21)`
 
 Format:
 
-```text
-<developer id><YY><MM><DD><sequence>
-```
+`<Developer ID><YY><MM><DD><NN>`
 
 Example:
 
-```text
-1226062301
-```
+`1226062301`
 
-When enabled, Developer ID must be set. The plugin reads the global AR metadata form to find the next available field id for the current day and developer id. It does not intentionally reuse an id just because you moved to another form.
-
-The metadata lookup targets:
-
-```text
-AR System Metadata: field
-```
-
-with fallback to:
-
-```text
-field
-```
-
-If a whole day range is full, the allocator rolls to the next day.
-
-Copied fields keep their existing ids.
+The plugin calculates the next unused ID from `AR System Metadata: field` for the current server/day. It searches the current day range first, then rolls forward to the next day if the entire 01-99 range is full. It also remembers IDs assigned during the current Developer Studio session before the form is saved.
 
 ## PWA icon helper
 
-Settings:
+Setting: `Show icon picker button next to Icon properties`
 
-```text
-Show icon picker button next to Icon properties
-CSS icon catalog URL
-```
+Required setting: `CSS icon catalog URL`
 
-Example CSS URL:
+Example:
 
-```text
-https://<midtier>/arsys/pwa/styles.xxxxxxx.css
-```
+`https://<midtier>/arsys/pwa/styles.xxxxxxx.css`
 
-The plugin reads BMC's PWA CSS icon catalog dynamically. It extracts `d-icon-*` classes and uses the referenced `dpl-icon-font` `.woff` / `.woff2` files to render previews.
+The plugin reads the configured PWA CSS file, extracts `d-icon-*` classes, downloads/embeds the referenced `dpl-iconfont` `.woff`/`.woff2` fonts, and shows the CSS-based picker for `Icon` properties.
 
-Main access path:
+The icon catalog is preloaded in the background at Developer Studio startup when the URL is configured, so the first picker open should be faster.
 
-```text
-Icon property picker button
-```
+The picker supports:
 
-The plugin tries to attach a `...` picker button to properties whose name/id is exactly `Icon`. Developer Studio's property grid is BMC-specific, so the inline button is best-effort, but it is the intended access path. The old top-level `Yrell Developer Tools` menu has been removed.
-
-When an icon is selected, the class name is copied to the clipboard and the dialog closes without an extra confirmation dialog.
+- search
+- paging
+- direct selection on click/double-click depending on the control
+- `Clear` to set the Icon value to empty
+- copy to clipboard when a value is selected or cleared
 
 ## Fast object lists
 
-Settings:
+Setting: `Load object lists with Custom/Overlay filter by default`
 
-```text
-Load object lists with Custom/Overlay filter by default
-Customization Type values
-Debug logging for Fast object lists
-```
+Values setting: `Customization Type values`
 
-Default values:
+Default:
 
-```text
-2,4
-```
+`2,4`
 
-Known customization type values:
+Values:
 
 - `0` = Base
 - `1` = Overlaid
 - `2` = Overlay
 - `4` = Custom
 
-This feature integrates the old FastForms Java agent into the normal Developer Tools plugin. It uses the same general idea as the old agent: when enabled, Developer Studio object lists are filtered toward the configured customization types so Base objects are not loaded/displayed by default.
+This feature is intended to keep object lists focused on the configured customization types. In 0.1.29 the configured values are authoritative, so Base is not accepted by the runtime filters unless `0` is included in the setting.
 
-The integrated implementation uses the plugin's OSGi weaving hook instead of a `-javaagent` line in `devstudio.ini`. You should remove the old FastForms javaagent settings if you use this integrated option.
-
-Recommended value for normal custom development:
-
-```text
-2,4
-```
+Important: this uses OSGi weaving. To avoid loading Base objects at the server-query level, Developer Studio must load this plugin before BMC's object-list provider classes are loaded. After enabling/disabling this setting, restart Developer Studio with `-clean`. If those BMC classes were already loaded before the hook was installed, the plugin can still filter displayed results, but it cannot retroactively prevent the earlier server fetch in that already-started session.
 
 ## Keepalive
 
-Settings:
+Setting: `Keep AR server sessions alive`
 
-```text
-Keep AR server sessions alive
-Keepalive interval (seconds)
-```
+Setting: `Keepalive interval (seconds)`
 
-Default interval:
+Default interval: `120`
 
-```text
-120
-```
+Allowed range: `30-3600`
 
-Allowed range:
-
-```text
-30-3600 seconds
-```
-
-When enabled, the plugin periodically calls `verifyUser()` on already connected AR Server sessions. It does not load forms, workflow or object lists.
+The plugin periodically calls `verifyUser()` on already connected AR Server sessions. It does not load object lists, forms or workflow.
 
 ## Logging
 
-Useful startup arguments while testing:
+Useful startup command:
 
-```text
--clean -consoleLog
-```
+`DeveloperStudio.exe -clean -consoleLog`
 
-Developer Studio log file:
+The Eclipse workspace log is normally here:
 
-```text
-<workspace>/.metadata/.log
-```
+`<workspace>/.metadata/.log`
 
-Search for:
-
-```text
-Yrell Developer Tools
-se.yrell.developertools
-Fast Forms hook applied
-Removed __c
-Keepalive
-```
-
-## Notes for version 0.1.27
-
-- The old top-level Developer Studio menu `Yrell Developer Tools` has been removed. The plugin is still configured through `Window -> Preferences -> Yrell Developer Tools`.
-- The PWA Icon picker now has a `Clear` button. It writes an empty value to the selected `Icon` property so an existing icon can be removed.

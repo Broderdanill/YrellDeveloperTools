@@ -90,12 +90,13 @@ public final class CustomSuffixRuntime {
             if (generatedName == null || generatedName.equals(cleanedName)) {
                 return generatedName;
             }
-            if (fieldNameExists(form, null, cleanedName)) {
-                Log.warn("Not removing __c from generated new-field name '" + generatedName + "' because '" + cleanedName + "' already exists on the form.");
-                return generatedName;
+            String uniqueName = makeUniqueCleanName(form, null, cleanedName);
+            if (!cleanedName.equals(uniqueName)) {
+                Log.info("Removed __c from generated new-field name '" + generatedName + "' and made it unique as '" + uniqueName + "'.");
+            } else {
+                Log.info("Removed __c from generated new-field name '" + generatedName + "' -> '" + cleanedName + "'.");
             }
-            Log.info("Removed __c from generated new-field name '" + generatedName + "' -> '" + cleanedName + "'.");
-            return cleanedName;
+            return uniqueName;
         } catch (Throwable t) {
             Log.error("Failed to remove __c from generated new-field name. Leaving Developer Studio default name unchanged.", t);
             return generatedName;
@@ -122,14 +123,15 @@ public final class CustomSuffixRuntime {
             if (currentName == null || currentName.equals(cleanedName)) {
                 return;
             }
-            if (fieldNameExists(form, field, cleanedName)) {
-                Log.warn("Not removing __c from new field '" + currentName + "' because '" + cleanedName + "' already exists on the form.");
-                return;
-            }
-            field.setName(cleanedName);
-            field.setNewName(cleanedName);
+            String uniqueName = makeUniqueCleanName(form, field, cleanedName);
+            field.setName(uniqueName);
+            field.setNewName(uniqueName);
             field.setDirty(true);
-            Log.info("Removed __c from newly created field '" + currentName + "' -> '" + cleanedName + "'.");
+            if (!cleanedName.equals(uniqueName)) {
+                Log.info("Removed __c from newly created field '" + currentName + "' and made it unique as '" + uniqueName + "'.");
+            } else {
+                Log.info("Removed __c from newly created field '" + currentName + "' -> '" + cleanedName + "'.");
+            }
         } catch (Throwable t) {
             Log.error("Failed to remove __c from newly created field. Leaving Developer Studio default name unchanged.", t);
         }
@@ -174,6 +176,31 @@ public final class CustomSuffixRuntime {
             return value.substring(0, value.length() - 3);
         }
         return value;
+    }
+
+    private static String makeUniqueCleanName(IFormObject form, IFieldObject currentField, String baseName) {
+        if (baseName == null || baseName.length() == 0) {
+            return baseName;
+        }
+        try {
+            if (!fieldNameExists(form, currentField, baseName)) {
+                return baseName;
+            }
+            // BMC can generate "Character Field__c" when "Character Field" already exists.
+            // In that case we still remove __c, but pick a clean unique name instead of
+            // leaving BMC's suffix in place. Use a simple visible numeric suffix and keep
+            // the logic limited to newly created fields only.
+            for (int i = 1; i < 10000; i++) {
+                String candidate = baseName + " " + i;
+                if (!fieldNameExists(form, currentField, candidate)) {
+                    return candidate;
+                }
+            }
+        } catch (Throwable ignored) {
+            // If we cannot inspect the form, return the cleaned name. This path only runs
+            // while a new field is being created, never during save/post-save.
+        }
+        return baseName;
     }
 
     private static boolean fieldNameExists(IFormObject form, IFieldObject currentField, String candidateName) {

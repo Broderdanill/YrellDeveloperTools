@@ -40,6 +40,27 @@ public final class IconCatalog {
     private IconCatalog() {
     }
 
+
+    public static void preloadAsync() {
+        final String cssUrl = normalizeCssUrl(ToolsPreferences.getPwaIconCatalogUrl());
+        if (cssUrl.length() == 0) {
+            return;
+        }
+        Thread t = new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    long start = System.currentTimeMillis();
+                    List<IconEntry> icons = getIcons();
+                    Log.info("Preloaded PWA icon catalog with " + icons.size() + " icons in " + (System.currentTimeMillis() - start) + " ms.");
+                } catch (Throwable ex) {
+                    Log.warn("Could not preload PWA icon catalog: " + ex.getMessage());
+                }
+            }
+        }, "Yrell-PWA-IconCatalog-Preload");
+        t.setDaemon(true);
+        t.start();
+    }
+
     public static List<IconEntry> getIcons() {
         String cssUrl = normalizeCssUrl(ToolsPreferences.getPwaIconCatalogUrl());
         String key = cssUrl.length() == 0 ? "none" : cssUrl;

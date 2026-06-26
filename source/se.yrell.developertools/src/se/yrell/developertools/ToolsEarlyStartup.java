@@ -5,6 +5,7 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.PlatformUI;
 
 import se.yrell.developertools.icons.IconPropertyButtonInstaller;
+import se.yrell.developertools.icons.IconCatalog;
 import se.yrell.developertools.keepalive.KeepAliveService;
 
 /**
@@ -20,6 +21,7 @@ public class ToolsEarlyStartup implements IStartup {
             // and SWT name filter handle __c before values are saved.
             PlatformUI.getWorkbench();
             IconPropertyButtonInstaller.install();
+            IconCatalog.preloadAsync();
             NewFieldSuffixMonitor.install();
             KeepAliveService.getInstance().start();
         } catch (Throwable t) {
