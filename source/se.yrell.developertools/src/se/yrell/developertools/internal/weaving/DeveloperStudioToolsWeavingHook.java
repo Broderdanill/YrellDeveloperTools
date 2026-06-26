@@ -16,6 +16,8 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
     private static final String FORM_HELPER_CLASS = "com.bmc.arsys.studio.model.internal.helper.FormHelper";
     private static final String UI_FIELD_CLASS = "com.bmc.arsys.studio.ui.editors.form.model.UIField";
     private static final String ITEM_PROPERTY_SOURCE_CLASS = "com.bmc.arsys.studio.ui.common.properties.ItemPropertySource";
+    private static final String FILTERING_SECTION_CLASS = "com.bmc.arsys.studio.ui.views.objectlist.FilteringSection";
+    private static final String FIELD_MAP_WIDGET_CLASS = "com.bmc.arsys.studio.ui.common.fieldmap.FieldMapWidget";
     private static final String BMC_PREFIX = "com.bmc.arsys.studio.";
     private static final String RUNTIME_PACKAGE = "se.yrell.developertools.runtime";
     private static final String CAN_APPEND = "canAppendCustomString";
@@ -152,6 +154,38 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
             } catch (Throwable t) {
                 Log.error("Failed to weave PWA Icon item-property descriptor hook into " + ITEM_PROPERTY_SOURCE_CLASS + ".", t);
                 throw new WeavingException("Failed to weave PWA Icon item-property descriptor hook", t);
+            }
+        }
+
+        if (FILTERING_SECTION_CLASS.equals(className)) {
+            try {
+                byte[] transformed = ObjectListSearchTransformer.transform(currentBytes);
+                if (transformed != null) {
+                    currentBytes = transformed;
+                    modified = true;
+                    Log.info("Object list search helper hook applied to " + FILTERING_SECTION_CLASS + ".");
+                } else {
+                    Log.warn("Object list search helper hook did not find expected bytecode in " + FILTERING_SECTION_CLASS + ".");
+                }
+            } catch (Throwable t) {
+                Log.error("Failed to weave object list search helper hook into " + FILTERING_SECTION_CLASS + ".", t);
+                throw new WeavingException("Failed to weave object list search helper hook", t);
+            }
+        }
+
+        if (FIELD_MAP_WIDGET_CLASS.equals(className)) {
+            try {
+                byte[] transformed = WorkflowFieldMapLayoutTransformer.transform(currentBytes);
+                if (transformed != null) {
+                    currentBytes = transformed;
+                    modified = true;
+                    Log.info("Workflow field-map layout hook applied to " + FIELD_MAP_WIDGET_CLASS + ".");
+                } else {
+                    Log.warn("Workflow field-map layout hook did not find expected bytecode in " + FIELD_MAP_WIDGET_CLASS + ".");
+                }
+            } catch (Throwable t) {
+                Log.error("Failed to weave workflow field-map layout hook into " + FIELD_MAP_WIDGET_CLASS + ".", t);
+                throw new WeavingException("Failed to weave workflow field-map layout hook", t);
             }
         }
 

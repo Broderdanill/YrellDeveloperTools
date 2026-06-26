@@ -61,6 +61,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
     private static final String FEATURE_KEEPALIVE = "keepalive";
     private static final String FEATURE_INSIGHT = "insight";
     private static final String FEATURE_VIEW_ACTIONS = "viewActions";
+    private static final String FEATURE_OBJECT_LIST_SEARCH = "objectListSearch";
+    private static final String FEATURE_WORKFLOW_FIELD_MAP_LAYOUT = "workflowFieldMapLayout";
 
     private final Map<String, Feature> features = new LinkedHashMap<String, Feature>();
 
@@ -83,6 +85,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
     private String keepAliveInterval;
     private boolean insightEnabled;
     private boolean removeFromViewEnabled;
+    private boolean objectListSearchEnhancerEnabled;
+    private boolean workflowFieldMapLayoutEnabled;
 
     public DeveloperStudioToolsPreferencePage() {
         ToolsActivator activator = ToolsActivator.getDefault();
@@ -300,6 +304,11 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
             addInfo(detailHost, "Opens the Object Insight view. Current focus: field permissions as one row per group, plus table qualification and table sort when a table field is selected.");
         } else if (FEATURE_VIEW_ACTIONS.equals(featureId)) {
             addInfo(detailHost, "Adds right-click action Remove from view when a selected field exists in another view. It removes only the selected field from the current view; the field remains on the form and in other views.");
+        } else if (FEATURE_OBJECT_LIST_SEARCH.equals(featureId)) {
+            addInfo(detailHost, "Keeps the text in Developer Studio's built-in object-list search field when you change Display items where. The search is immediately applied to the newly selected column instead of being cleared.");
+            addInfo(detailHost, "When the search field is created after this module is enabled, it is created with SWT's native search/cancel icon so the small X clears the text and keeps focus in the field.");
+        } else if (FEATURE_WORKFLOW_FIELD_MAP_LAYOUT.equals(featureId)) {
+            addInfo(detailHost, "Stretches the Value column in workflow field-map tables, for example Set Fields and Push Fields, so the large empty area to the right is used for the expression/value text instead of looking like an empty extra column.");
         }
 
         detailHost.layout(true, true);
@@ -400,6 +409,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         keepAliveInterval = String.valueOf(ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS);
         insightEnabled = ToolsConstants.DEFAULT_OBJECT_INSIGHT_ENABLED;
         removeFromViewEnabled = ToolsConstants.DEFAULT_REMOVE_FROM_VIEW_ENABLED;
+        objectListSearchEnhancerEnabled = ToolsConstants.DEFAULT_OBJECT_LIST_SEARCH_ENHANCER_ENABLED;
+        workflowFieldMapLayoutEnabled = ToolsConstants.DEFAULT_WORKFLOW_FIELD_MAP_LAYOUT_ENABLED;
         refreshFeatureTable();
         renderDetails(selectedFeatureId);
         super.performDefaults();
@@ -478,6 +489,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
             store.setValue(ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS, parseIntOrDefault(keepAliveInterval, ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS));
             store.setValue(ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED, insightEnabled);
             store.setValue(ToolsConstants.PREF_REMOVE_FROM_VIEW_ENABLED, removeFromViewEnabled);
+            store.setValue(ToolsConstants.PREF_OBJECT_LIST_SEARCH_ENHANCER_ENABLED, objectListSearchEnhancerEnabled);
+            store.setValue(ToolsConstants.PREF_WORKFLOW_FIELD_MAP_LAYOUT_ENABLED, workflowFieldMapLayoutEnabled);
         }
 
         Preferences node = ToolsPreferences.node();
@@ -496,6 +509,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         node.putInt(ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS, parseIntOrDefault(keepAliveInterval, ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS));
         node.putBoolean(ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED, insightEnabled);
         node.putBoolean(ToolsConstants.PREF_REMOVE_FROM_VIEW_ENABLED, removeFromViewEnabled);
+        node.putBoolean(ToolsConstants.PREF_OBJECT_LIST_SEARCH_ENHANCER_ENABLED, objectListSearchEnhancerEnabled);
+        node.putBoolean(ToolsConstants.PREF_WORKFLOW_FIELD_MAP_LAYOUT_ENABLED, workflowFieldMapLayoutEnabled);
         try {
             node.flush();
         } catch (BackingStoreException e) {
@@ -533,6 +548,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         keepAliveInterval = String.valueOf(getInt(store, ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS, ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS));
         insightEnabled = getBoolean(store, ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED, ToolsConstants.DEFAULT_OBJECT_INSIGHT_ENABLED);
         removeFromViewEnabled = getBoolean(store, ToolsConstants.PREF_REMOVE_FROM_VIEW_ENABLED, ToolsConstants.DEFAULT_REMOVE_FROM_VIEW_ENABLED);
+        objectListSearchEnhancerEnabled = getBoolean(store, ToolsConstants.PREF_OBJECT_LIST_SEARCH_ENHANCER_ENABLED, ToolsConstants.DEFAULT_OBJECT_LIST_SEARCH_ENHANCER_ENABLED);
+        workflowFieldMapLayoutEnabled = getBoolean(store, ToolsConstants.PREF_WORKFLOW_FIELD_MAP_LAYOUT_ENABLED, ToolsConstants.DEFAULT_WORKFLOW_FIELD_MAP_LAYOUT_ENABLED);
     }
 
     private boolean getBoolean(IPreferenceStore store, String key, boolean defaultValue) {
@@ -604,6 +621,12 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         features.put(FEATURE_VIEW_ACTIONS, new Feature(FEATURE_VIEW_ACTIONS, "Form view actions",
                 "Adds form-editor actions such as Remove from view.",
                 "A restart is recommended if the context menu was already created before enabling this feature."));
+        features.put(FEATURE_OBJECT_LIST_SEARCH, new Feature(FEATURE_OBJECT_LIST_SEARCH, "Object list search helper",
+                "Improves the built-in Forms/Active Links/etc. object-list search field.",
+                "Restart Developer Studio after enabling/disabling so the object-list UI classes are woven before they load. Reopen object lists to get the native X icon."));
+        features.put(FEATURE_WORKFLOW_FIELD_MAP_LAYOUT, new Feature(FEATURE_WORKFLOW_FIELD_MAP_LAYOUT, "Workflow field-map layout",
+                "Uses the empty space in workflow field-map tables for the Value column.",
+                "Reopen workflow editors after enabling/disabling. Restart is safest if workflow UI classes were already loaded."));
     }
 
     private boolean isFeatureEnabled(String id) {
@@ -615,6 +638,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         if (FEATURE_KEEPALIVE.equals(id)) return keepAliveEnabled;
         if (FEATURE_INSIGHT.equals(id)) return insightEnabled;
         if (FEATURE_VIEW_ACTIONS.equals(id)) return removeFromViewEnabled;
+        if (FEATURE_OBJECT_LIST_SEARCH.equals(id)) return objectListSearchEnhancerEnabled;
+        if (FEATURE_WORKFLOW_FIELD_MAP_LAYOUT.equals(id)) return workflowFieldMapLayoutEnabled;
         return false;
     }
 
@@ -627,6 +652,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         else if (FEATURE_KEEPALIVE.equals(id)) keepAliveEnabled = enabled;
         else if (FEATURE_INSIGHT.equals(id)) insightEnabled = enabled;
         else if (FEATURE_VIEW_ACTIONS.equals(id)) removeFromViewEnabled = enabled;
+        else if (FEATURE_OBJECT_LIST_SEARCH.equals(id)) objectListSearchEnhancerEnabled = enabled;
+        else if (FEATURE_WORKFLOW_FIELD_MAP_LAYOUT.equals(id)) workflowFieldMapLayoutEnabled = enabled;
     }
 
     private String enabledText(String id) {
@@ -670,7 +697,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         } catch (Throwable ignored) {
             // Fall through to generic example.
         }
-        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.40.jar";
+        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.43.jar";
     }
 
     private boolean isValidDeveloperId(String developerIdText) {

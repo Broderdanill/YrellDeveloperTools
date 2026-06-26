@@ -1,4 +1,4 @@
-# Yrell Developer Tools 0.1.42
+# Yrell Developer Tools 0.1.43
 
 Developer Studio helper plugin for BMC Helix/AR System Developer Studio.
 
@@ -6,8 +6,8 @@ Developer Studio helper plugin for BMC Helix/AR System Developer Studio.
 
 1. Close Developer Studio.
 2. Remove older `se.yrell.developertools_*.jar` from `x64/plugins`.
-3. Copy `install/se.yrell.developertools_0.1.42.jar` to `x64/plugins`.
-4. If Fast object lists is used as Java agent, update `DeveloperStudio.ini` to point at `se.yrell.developertools_0.1.42.jar`.
+3. Copy `install/se.yrell.developertools_0.1.43.jar` to `x64/plugins`.
+4. If Fast object lists is used as Java agent, update `DeveloperStudio.ini` to point at `se.yrell.developertools_0.1.43.jar`.
 5. Start Developer Studio with `-clean -consoleLog`.
 
 Fast object lists still requires the same jar to be loaded with `-javaagent` in `DeveloperStudio.ini` if you want the initial server-side object-list request to be filtered before BMC classes load.
@@ -42,7 +42,7 @@ Filters list loading by Customization Type values such as `2,4` for Overlay and 
 
 Important: true initial server-side filtering requires the jar as Java agent. Without `-javaagent`, Developer Studio may load all objects first and filter afterwards.
 
-0.1.42 fixes the Java agent default so it follows the plugin principle: Fast object lists is disabled unless `bmc.ds.fastForms.enabled=true` is configured or the saved agent properties file enables it.
+0.1.41 fixes the Java agent default so it follows the plugin principle: Fast object lists is disabled unless `bmc.ds.fastForms.enabled=true` is configured or the saved agent properties file enables it.
 
 ### Keepalive
 
@@ -62,6 +62,16 @@ Current display:
 
 The view keeps the last real Developer Studio selection as its own selection provider so the normal Properties view should not clear just because Object Insight receives focus.
 
+### Object list search helper
+
+Keeps the text in the built-in object-list search field when `Display items where` is changed, so the same search is applied against the new column instead of being cleared.
+
+When the search field is created while this module is enabled, it is created with SWT search/cancel style so the native `X` icon clears the field and keeps focus in it.
+
+### Workflow field-map layout
+
+Stretches the Value column in workflow field-map widgets such as Set Fields and Push Fields, using the otherwise empty area to the right for long expressions/values.
+
 ### Remove from view
 
 Optional right-click command: `Remove from view`.
@@ -76,8 +86,14 @@ It removes only the current view instance. The AR field remains on the form and 
 
 0.1.40 uses BMC's own `RemoveFieldFromViewCommand` path when available so the current form view refreshes visually immediately and participates in the editor command stack.
 
+## 0.1.43 changes
+
+- Added Object list search helper setting.
+- Added Workflow field-map layout setting.
+- Both new modules are preference-controlled and disabled by default.
+
 ## Build notes
 
-- Bundle version: `0.1.42`
+- Bundle version: `0.1.43`
 - Java bytecode: 17 / major version 61
 - Same jar can be used both as Eclipse plugin and Fast object lists Java agent.

@@ -34,6 +34,8 @@ public final class ToolsConstants {
 
     public static final String PREF_OBJECT_INSIGHT_ENABLED = "objectInsight.enabled";
     public static final String PREF_REMOVE_FROM_VIEW_ENABLED = "removeFromView.enabled";
+    public static final String PREF_OBJECT_LIST_SEARCH_ENHANCER_ENABLED = "objectListSearchEnhancer.enabled";
+    public static final String PREF_WORKFLOW_FIELD_MAP_LAYOUT_ENABLED = "workflowFieldMapLayout.enabled";
 
 
     public static final boolean DEFAULT_REMOVE_CUSTOM_SUFFIX_ENABLED = false;
@@ -61,6 +63,8 @@ public final class ToolsConstants {
 
     public static final boolean DEFAULT_OBJECT_INSIGHT_ENABLED = false;
     public static final boolean DEFAULT_REMOVE_FROM_VIEW_ENABLED = false;
+    public static final boolean DEFAULT_OBJECT_LIST_SEARCH_ENHANCER_ENABLED = false;
+    public static final boolean DEFAULT_WORKFLOW_FIELD_MAP_LAYOUT_ENABLED = false;
 
     private ToolsConstants() {
     }

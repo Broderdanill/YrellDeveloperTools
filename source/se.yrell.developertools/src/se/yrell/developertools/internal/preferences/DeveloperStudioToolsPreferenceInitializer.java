@@ -38,5 +38,7 @@ public class DeveloperStudioToolsPreferenceInitializer extends AbstractPreferenc
 
         store.setDefault(ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED, ToolsConstants.DEFAULT_OBJECT_INSIGHT_ENABLED);
         store.setDefault(ToolsConstants.PREF_REMOVE_FROM_VIEW_ENABLED, ToolsConstants.DEFAULT_REMOVE_FROM_VIEW_ENABLED);
+        store.setDefault(ToolsConstants.PREF_OBJECT_LIST_SEARCH_ENHANCER_ENABLED, ToolsConstants.DEFAULT_OBJECT_LIST_SEARCH_ENHANCER_ENABLED);
+        store.setDefault(ToolsConstants.PREF_WORKFLOW_FIELD_MAP_LAYOUT_ENABLED, ToolsConstants.DEFAULT_WORKFLOW_FIELD_MAP_LAYOUT_ENABLED);
     }
 }

@@ -186,6 +186,16 @@ public final class ToolsPreferences {
                 ToolsConstants.DEFAULT_REMOVE_FROM_VIEW_ENABLED);
     }
 
+    public static boolean isObjectListSearchEnhancerEnabled() {
+        return node().getBoolean(ToolsConstants.PREF_OBJECT_LIST_SEARCH_ENHANCER_ENABLED,
+                ToolsConstants.DEFAULT_OBJECT_LIST_SEARCH_ENHANCER_ENABLED);
+    }
+
+    public static boolean isWorkflowFieldMapLayoutEnabled() {
+        return node().getBoolean(ToolsConstants.PREF_WORKFLOW_FIELD_MAP_LAYOUT_ENABLED,
+                ToolsConstants.DEFAULT_WORKFLOW_FIELD_MAP_LAYOUT_ENABLED);
+    }
+
 
     /**
      * Deprecated since 0.1.5. Auto Field ID is intentionally local again and no longer scans all forms.
