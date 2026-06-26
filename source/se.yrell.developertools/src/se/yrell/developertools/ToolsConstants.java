@@ -32,6 +32,9 @@ public final class ToolsConstants {
     public static final String PREF_KEEPALIVE_ENABLED = "keepAlive.enabled";
     public static final String PREF_KEEPALIVE_INTERVAL_SECONDS = "keepAlive.intervalSeconds";
 
+    public static final String PREF_OBJECT_INSIGHT_ENABLED = "objectInsight.enabled";
+
+
     public static final boolean DEFAULT_REMOVE_CUSTOM_SUFFIX_ENABLED = false;
     public static final boolean DEFAULT_REMOVE_CUSTOM_SUFFIX_UI_FILTER = false;
     public static final boolean DEFAULT_REMOVE_CUSTOM_SUFFIX_POST_SAVE_CLEANUP = false;
@@ -54,6 +57,8 @@ public final class ToolsConstants {
     public static final int DEFAULT_KEEPALIVE_INTERVAL_SECONDS = 120;
     public static final int MIN_KEEPALIVE_INTERVAL_SECONDS = 30;
     public static final int MAX_KEEPALIVE_INTERVAL_SECONDS = 3600;
+
+    public static final boolean DEFAULT_OBJECT_INSIGHT_ENABLED = false;
 
     private ToolsConstants() {
     }

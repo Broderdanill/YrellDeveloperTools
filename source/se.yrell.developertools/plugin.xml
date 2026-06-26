@@ -16,4 +16,35 @@
       <initializer class="se.yrell.developertools.internal.preferences.DeveloperStudioToolsPreferenceInitializer"/>
    </extension>
 
+
+   <extension point="org.eclipse.ui.views">
+      <category
+            id="se.yrell.developertools.views"
+            name="Yrell Developer Tools"/>
+      <view
+            id="se.yrell.developertools.views.objectInsight"
+            name="Object Insight"
+            category="se.yrell.developertools.views"
+            class="se.yrell.developertools.inspector.ObjectInsightView"
+            restorable="true"
+            allowMultiple="false"/>
+   </extension>
+
+   <extension point="org.eclipse.ui.perspectiveExtensions">
+      <perspectiveExtension targetID="com.bmc.arsys.studio.ui.eclipse.perspectives.DeveloperPerspectiveFactory">
+         <view
+               id="se.yrell.developertools.views.objectInsight"
+               relative="org.eclipse.ui.views.PropertySheet"
+               relationship="stack"
+               visible="false"/>
+      </perspectiveExtension>
+      <perspectiveExtension targetID="com.bmc.arsys.studio.ui.eclipse.perspectives.EditorPerspectiveFactory">
+         <view
+               id="se.yrell.developertools.views.objectInsight"
+               relative="org.eclipse.ui.views.PropertySheet"
+               relationship="stack"
+               visible="false"/>
+      </perspectiveExtension>
+   </extension>
+
 </plugin>

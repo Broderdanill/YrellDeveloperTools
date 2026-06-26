@@ -23,6 +23,7 @@ import se.yrell.developertools.ToolsActivator;
 import se.yrell.developertools.ToolsConstants;
 import se.yrell.developertools.ToolsPreferences;
 import se.yrell.developertools.keepalive.KeepAliveService;
+import se.yrell.developertools.inspector.ObjectInsightViewSupport;
 
 public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePage implements IWorkbenchPreferencePage {
     private static final int MIN_DEVELOPER_ID = 10;
@@ -40,6 +41,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
     private BooleanFieldEditor fastFormsDebugEditor;
     private BooleanFieldEditor keepAliveEnabledEditor;
     private StringFieldEditor keepAliveIntervalEditor;
+    private BooleanFieldEditor objectInsightEnabledEditor;
 
     public DeveloperStudioToolsPreferencePage() {
         super(GRID);
@@ -108,7 +110,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         fastFormsDebugEditor = new BooleanFieldEditor(ToolsConstants.PREF_FAST_FORMS_DEBUG,
                 "Debug logging for Fast object lists", fastGroup);
         addField(fastFormsDebugEditor);
-        addImportant(fastGroup, "IMPORTANT: Fast object lists only becomes truly fast when the jar is also loaded as a Java agent before Developer Studio loads BMC list classes. Without -javaagent, Developer Studio can first load all objects and only filter afterwards, which can be slower. Add this line to DeveloperStudio.ini, restart with -clean, then enable this feature:\n-javaagent:<path-to-plugins>/se.yrell.developertools_0.1.34.jar");
+        addImportant(fastGroup, "IMPORTANT: Fast object lists only becomes truly fast when the jar is also loaded as a Java agent before Developer Studio loads BMC list classes. Without -javaagent, Developer Studio can first load all objects and only filter afterwards, which can be slower. Add this line to DeveloperStudio.ini, restart with -clean, then enable this feature:\n-javaagent:<path-to-plugins>/se.yrell.developertools_0.1.35.jar");
         fastFormsAgentStatusLabel = addInfo(fastGroup, fastFormsAgentStatusText());
         addCopyAgentButton(fastGroup);
 
@@ -121,6 +123,12 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         keepAliveIntervalEditor.setEmptyStringAllowed(true);
         addField(keepAliveIntervalEditor);
         addInfo(keepAliveGroup, "When enabled, the plugin periodically calls verifyUser() on already connected AR Server sessions. This is lightweight and does not load object lists or forms. Default interval: 120 seconds.");
+
+        Composite insightGroup = createGroup(parent, "Object insight panel");
+        objectInsightEnabledEditor = new BooleanFieldEditor(ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED,
+                "Show selected object details panel", insightGroup);
+        addField(objectInsightEnabledEditor);
+        addInfo(insightGroup, "Adds a Developer Studio view named Object Insight. It follows the current selection and shows values that are otherwise hidden behind ... dialogs, including field permissions and table-field qualification/sort information. The view is auto-opened when enabled and can be moved/stacked under Properties; Developer Studio should remember the placement.");
     }
 
     private Composite createGroup(Composite parent, String text) {
@@ -198,7 +206,7 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
         } catch (Throwable ignored) {
             // Fall through to generic example.
         }
-        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.34.jar";
+        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.35.jar";
     }
 
     @Override
@@ -274,6 +282,11 @@ public class DeveloperStudioToolsPreferencePage extends FieldEditorPreferencePag
             if (fastFormsAgentStatusLabel != null && !fastFormsAgentStatusLabel.isDisposed()) {
                 fastFormsAgentStatusLabel.setText(fastFormsAgentStatusText());
                 fastFormsAgentStatusLabel.getParent().layout(true, true);
+            }
+            if (objectInsightEnabledEditor != null && objectInsightEnabledEditor.getBooleanValue()) {
+                ObjectInsightViewSupport.openAsync();
+            } else {
+                ObjectInsightViewSupport.hideAsync();
             }
         }
         return ok;

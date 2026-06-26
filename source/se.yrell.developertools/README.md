@@ -1,4 +1,4 @@
-# Yrell Developer Tools 0.1.34
+# Yrell Developer Tools 0.1.35
 
 Developer Studio helper plugin for BMC Helix/Remedy Developer Studio.
 
@@ -15,7 +15,7 @@ The plugin is compiled as Java 17 bytecode and is intended to run on JDK 17 and 
    - `se.yrell.developertools_*.jar`
    - `se.yrell.devstudio.keepalive_*.jar`
    - old `devstudio-fastforms` agent jars if they are no longer used separately
-3. Copy `install/se.yrell.developertools_0.1.34.jar` to Developer Studio's `plugins` folder.
+3. Copy `install/se.yrell.developertools_0.1.35.jar` to Developer Studio's `plugins` folder.
 4. Start Developer Studio once with `-clean -consoleLog`.
 
 ## Fast object lists and the required Java agent step
@@ -25,18 +25,36 @@ Fast object lists can only make the initial object fetch fast if the jar is also
 Add the same jar to `DeveloperStudio.ini`, for example:
 
 ```text
--javaagent:C:\Temp\se.yrell.developertools_0.1.34.jar
+-javaagent:C:\Temp\se.yrell.developertools_0.1.35.jar
 ```
 
 or, if the path works in your installation:
 
 ```text
--javaagent:C:\Program Files\BMC Software_25_3_Beta\DeveloperStudio\plugins\se.yrell.developertools_0.1.34.jar
+-javaagent:C:\Program Files\BMC Software_25_3_Beta\DeveloperStudio\plugins\se.yrell.developertools_0.1.35.jar
 ```
 
-If the jar is only installed as a normal Eclipse plugin, Developer Studio may first load all objects and only filter the result afterwards. That can be slower than not using the feature. The Preferences page now shows an IMPORTANT note and an agent-status line so this step is harder to miss.
+If the jar is only installed as a normal Eclipse plugin, Developer Studio may first load all objects and only filter the result afterwards. That can be slower than not using the feature. The Preferences page shows an IMPORTANT note and an agent-status line so this step is harder to miss.
 
 After changing Fast object lists settings, restart Developer Studio with `-clean`.
+
+## Object Insight panel
+
+Setting:
+
+`Show selected object details panel`
+
+Adds a Developer Studio view named **Object Insight**. The view follows the current selection and shows selected high-value properties without opening every `...` dialog in the standard Properties view.
+
+Initial focus:
+
+- field permissions
+- table-field qualification
+- table-field sort order
+- selected object runtime/name/field/database details
+- other rich property values that look useful, such as table/column/source/remote form data
+
+The view is contributed to both the Developer and Editor perspectives and is intended to be stacked with/near the normal Properties view. It is also auto-opened when the setting is enabled. If Developer Studio keeps an existing old perspective layout, move the view once under Properties and the workbench should remember the placement.
 
 ## Custom suffix cleanup
 
@@ -131,9 +149,3 @@ Interval range: `30-3600` seconds.
 The current implementation calls `verifyUser()` on already connected AR Server sessions. It is intentionally lightweight and does not load forms, workflow or object lists.
 
 Keepalive can reduce idle-session problems, but it is not a full fix for every hang. Developer Studio can also pause because of object-list/cache refreshes, RPC/API timeouts, authentication/token expiry, server-side transaction timeouts, RSSO/SSO idle timeout, load balancers, or network idle connection handling.
-
-
-
-## Preference validation note
-
-Version 0.1.34 fixes the Preferences page runtime error caused by compiling SWT Group.setLayout against the wrong stub signature. The Preferences page now uses the SWT Layout signature expected by Developer Studio, so the page can open again. Conditional fields are still validated only when their corresponding feature is enabled.

@@ -176,6 +176,12 @@ public final class ToolsPreferences {
         return value;
     }
 
+    public static boolean isObjectInsightEnabled() {
+        return node().getBoolean(ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED,
+                ToolsConstants.DEFAULT_OBJECT_INSIGHT_ENABLED);
+    }
+
+
     /**
      * Deprecated since 0.1.5. Auto Field ID is intentionally local again and no longer scans all forms.
      */
