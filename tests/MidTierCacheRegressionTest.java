@@ -34,6 +34,8 @@ public final class MidTierCacheRegressionTest {
         boolean badAction;
         boolean wrongServer;
         boolean crossOrigin;
+        boolean crossOriginFull;
+        boolean manyServers;
         boolean loginFormAlways;
         boolean ssoRedirectBeforeLogin;
         boolean ssoAutoLogin;
@@ -90,11 +92,14 @@ public final class MidTierCacheRegressionTest {
                     send(ex, 200, "<html><form name='cache_clenaup_form' action='" + endpoint + "' method='post'>"
                         + "<input name='form_flush' value='Yes'><input name='cfgStok' value='token123'>"
                         + "<select name='server'><option value=''>-- choose --</option><option value='"
-                        + (wrongServer ? "badserver" : "arserver") + "'>arserver</option></select>"
+                        + (manyServers ? "other'>other</option><option value='third" : wrongServer ? "badserver" : "arserver")
+                        + "'>arserver</option></select>"
                         + "<input name='form_name' value=''></form></html>");
                 } else if (path.endsWith("/config_cache.jsp")) {
                     if (!authenticated(ex) || loginFormAlways) { send(ex, 200, LOGIN); return; }
-                    send(ex, 200, "<html><form name='flush_cache_form' action='/arsys/servlet/GoatConfigServlet?action=Cache' method='post'>"
+                    send(ex, 200, "<html><form name='flush_cache_form' action='"
+                        + (crossOriginFull ? "http://backend.internal:8080/arsys/servlet/GoatConfigServlet?action=Cache"
+                             : "/arsys/servlet/GoatConfigServlet?action=Cache") + "' method='post'>"
                         + "<input name='cache_flush' value='No'><input name='cache_flush_allpods' value='No'>"
                         + "<input name='cfgStok' value='token123'></form></html>");
                 } else if (path.endsWith("/ConfigServlet") && "action=logon".equals(query)) {
@@ -161,26 +166,32 @@ public final class MidTierCacheRegressionTest {
             result = client.flush(0, "User", true, () -> { throw new AssertionError("Must reuse active MidTier session"); });
             check(result.outcome() == MidTierHttpClient.Outcome.ALREADY_EMPTY, "Empty cache response parsed");
             f.wrongServer = true;
+            result = client.flush(0, "User", true, MidTierCacheRegressionTest::credentials);
+            check(f.body.get().contains("server=badserver") && f.flushes.get() == 3,
+                    "The only Server List value is selected even if Studio uses another alias");
+            f.wrongServer = false;
+            f.manyServers = true;
             boolean rejected = false;
             try { client.flush(0, "User", true, MidTierCacheRegressionTest::credentials); }
-            catch (java.io.IOException e) { rejected = e.getMessage().contains("server list"); }
-            check(rejected && f.flushes.get() == 2, "Wrong server is refused before POST");
-            f.wrongServer = false;
+            catch (java.io.IOException e) { rejected = e.getMessage().contains("Multiple AR servers"); }
+            check(rejected && f.flushes.get() == 3, "Ambiguous multiple servers refused before POST");
+            f.manyServers = false;
             f.crossOrigin = true;
-            rejected = false;
-            try { client.flush(0, "User", true, MidTierCacheRegressionTest::credentials); }
-            catch (java.io.IOException e) { rejected = e.getMessage().contains("outside"); }
-            check(rejected && f.flushes.get() == 2, "Cross-origin form action refused");
+            result = client.flush(0, "User", true, MidTierCacheRegressionTest::credentials);
+            check(f.flushes.get() == 4 && f.body.get().contains("form_name=User"),
+                    "Backend/foreign absolute servlet action is POSTed to configured origin only");
             f.crossOrigin = false;
             f.badAction = true;
             rejected = false;
             try { client.flush(0, "User", true, MidTierCacheRegressionTest::credentials); }
             catch (java.io.IOException e) { rejected = e.getMessage().contains("Unexpected"); }
-            check(rejected && f.flushes.get() == 2, "Wrong endpoint refused");
+            check(rejected && f.flushes.get() == 4, "Wrong servlet path refused");
             f.badAction = false;
+            f.crossOriginFull = true;
             result = client.flush(2, "", true, MidTierCacheRegressionTest::credentials);
             check(result.outcome() == MidTierHttpClient.Outcome.ACCEPTED_UNVERIFIED, "Full cache not falsely marked confirmed");
             check(f.body.get().contains("cache_flush_allpods=Yes") && f.body.get().contains("cache_flush=No"), "All-pods switch");
+            check(f.flushes.get() == 5, "Backend absolute action normalized for all-pods flush");
             result = client.flush(1, "", true, MidTierCacheRegressionTest::credentials);
             check(f.body.get().contains("cache_flush=Yes") && f.body.get().contains("cache_flush_allpods=No"), "Full flush switch");
         }

@@ -1,14 +1,20 @@
-Yrell Developer Tools 0.1.55 — BMC Developer Studio 26.1.1 build001
+Yrell Developer Tools 0.1.56 — BMC Developer Studio 26.1.1 build001
 
 Java source files: 55, compiled with --release 17 — PASS
-Default naming assertions: 14 PASS
+Default naming: 14 PASS
 Automatic Field IDs: 5 PASS
-Fast Forms checkbox state assertions: 6 PASS
-MidTier HTTP/mock-server regression assertions: 35 PASS
-MidTier SSO regression assertions: 13 PASS
-MidTier Configuration Tool authorization assertions: 21 PASS
-MidTier browser JavaScript DOM simulation (Node): 44 PASS (ES5 legacy-engine simulation)
+Fast Forms checkbox state: 6 PASS
+MidTier HTTP/mock-server integration: 37 PASS
+MidTier SSO: 13 PASS
+MidTier Configuration Tool authorization: 21 PASS
+MidTier browser JavaScript DOM ES5 simulation: 58 PASS
 Bytecode transformation audit: PASS
 Java agent bootstrap smoke test: PASS
 
-Not tested: live Windows SWT Browser / your real RSSO + Configuration Tool login and actual flush request.
+Added regression coverage: reverse-proxy/internal absolute form.action rewritten
+safely for form/full/all-pods, a sole server option selected automatically,
+multiple server options requiring a unique match, foreign servlet path blocked,
+legacy SWT Browser JavaScript without ES6 APIs.
+
+Not tested: actual SWT Browser on Windows, real RSSO login, live production
+MidTier server, actual flush invocation/response and UI hide/show behavior.

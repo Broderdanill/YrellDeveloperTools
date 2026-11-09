@@ -136,7 +136,17 @@ public final class MidTierBrowserScript {
                 + "f.submit();return true;})()";
     }
 
-    /** Validates a cache form without triggering the operation. */
+    /**
+     * Check the real BMC form before submission. MidTier behind a TLS-terminating
+     * reverse proxy may render an absolute action using its *internal* HTTP host.
+     * We validate the servlet PATH and exact query, then replace the form action
+     * with the known HTTPS MidTier origin configured by the user at submission.
+     * This prevents leaking cfgStok to the internal host or to another origin.
+     *
+     * The returned READY|server value is deliberately based on the live Server
+     * List: when it has exactly one non-empty option, that option wins. With
+     * multiple options, the Studio server must match uniquely.
+     */
     public static String preflight(String baseUrl, int mode, String server) {
         String target = mode == 0 ? "cache_clenaup_form" : "flush_cache_form";
         String wanted = MidTierConfiguration.normalizeBaseUrl(baseUrl) + "/servlet/GoatConfigServlet";
@@ -146,9 +156,17 @@ public final class MidTierBrowserScript {
                 + "if(!form)return 'NOT_CACHE_PAGE';"
                 + "var token=getElement(form,'cfgStok');"
                 + "if(!token||!token.value)return 'ERROR: Missing cfgStok';"
-                + "var action=link(form.getAttribute('action')||'');"
-                + "var wanted=link(" + jsString(wanted) + ");"
-                + "if(!sameEndpoint(action,wanted))return 'ERROR: Unexpected form action';"
+                + "if(String(form.method||'').toLowerCase()!=='post')return 'ERROR: Unexpected form method';"
+                + "var actionRaw=form.getAttribute('action')||form.action||'';"
+                + "var action=link(actionRaw);var wanted=link(" + jsString(wanted) + ");"
+                + "var current=link(location.href||'');"
+                + "if(String(current.protocol).toLowerCase()!==String(wanted.protocol).toLowerCase()"
+                + "||String(current.hostname).toLowerCase()!==String(wanted.hostname).toLowerCase()"
+                + "||endpointPort(current)!==endpointPort(wanted))return 'ERROR: Wrong MidTier origin';"
+                // The *servlet path* is BMC-defined. The origin may be the
+                // reverse proxy's internal server and will be rewritten.
+                + "if(endpointPath(action)!==endpointPath(wanted))return 'ERROR: Unexpected form action path';"
+                + "if(action.hash)return 'ERROR: Unexpected action fragment';"
                 + (mode == 0
                    ? "if(!queryEquals(action.search,[['action','Cache'],['op_type','form_cleanup']]))"
                      + "return 'ERROR: Invalid cleanup action';"
@@ -156,28 +174,48 @@ public final class MidTierBrowserScript {
                      + "return 'ERROR: Unexpected cleanup mode';")
                 + (mode == 0
                    ? "var sel=getElement(form,'server');if(!sel||!sel.options)return 'ERROR: Missing server list';"
-                     + "var found=false;for(var i=0;i<sel.options.length;i++){"
-                     + "if(sel.options[i].value===" + jsString(server) + "){found=true;break;}}"
-                     + "if(!found)return 'ERROR: AR server not in MidTier list';"
+                     + "var options=[];for(var i=0;i<sel.options.length;i++){"
+                     + "if(sel.options[i].value)options.push(sel.options[i].value);}"
+                     + "if(!options.length)return 'ERROR: Empty server list';"
+                     + "var chosen='';"
+                     + "if(options.length===1){chosen=options[0];}else{"
+                     + "var exact=0;for(var j=0;j<options.length;j++){"
+                     + "if(options[j]===" + jsString(server) + "){chosen=options[j];exact++;}}"
+                     + "if(exact!==1){chosen='';var ci=0;for(var k=0;k<options.length;k++){"
+                     + "if(String(options[k]).toLowerCase()===String(" + jsString(server) + ").toLowerCase()){"
+                     + "chosen=options[k];ci++;}}if(ci!==1)return 'ERROR: Multiple AR servers; no unique match';}"
+                     + "}"
                      + "if(!getElement(form,'form_name')||!getElement(form,'form_flush'))"
                      + "return 'ERROR: Form inputs missing';"
+                     + "return 'READY|'+chosen;"
                    : "if(!getElement(form,'cache_flush')||!getElement(form,'cache_flush_allpods'))"
-                     + "return 'ERROR: Cache inputs missing';")
-                + "return 'READY';})()";
+                     + "return 'ERROR: Cache inputs missing';return 'READY';")
+                + "})()";
     }
 
-    /** Submits BMC's original form, retaining SWT Browser's session cookies. */
+    /**
+     * Post BMC's verified form to the CONFIGURED origin, not the untrusted
+     * absolute action URL emitted by some reverse-proxy configurations.
+     * Submitted form fields and HttpOnly cookies remain inside SWT Browser.
+     */
     public static String submit(String baseUrl, int mode, String server, String formName) {
         String target = mode == 0 ? "cache_clenaup_form" : "flush_cache_form";
+        String safeAction = MidTierConfiguration.normalizeBaseUrl(baseUrl) + "/servlet/GoatConfigServlet"
+                + (mode == 0 ? "?action=Cache&op_type=form_cleanup" : "?action=Cache");
         return "(function(){" + ES5_HELPERS
-                + "if(" + preflight(baseUrl, mode, server) + "!=='READY')return false;"
+                + "var check=" + preflight(baseUrl, mode, server) + ";"
+                + (mode == 0
+                   ? "if(check.indexOf('READY|')!==0)return false;var chosen=check.substring(6);"
+                   : "if(check!=='READY')return false;")
                 + "var f=getForm(" + jsString(target) + ");if(!f)return false;"
                 + (mode == 0
-                   ? "getElement(f,'server').value=" + jsString(server) + ";"
+                   ? "var sel=getElement(f,'server');sel.value=chosen;"
+                     + "if(sel.value!==chosen)return false;"
                      + "getElement(f,'form_name').value=" + jsString(formName) + ";"
                      + "getElement(f,'form_flush').value='Yes';"
                    : "getElement(f,'cache_flush').value='" + (mode == 1 ? "Yes" : "No") + "';"
                      + "getElement(f,'cache_flush_allpods').value='" + (mode == 2 ? "Yes" : "No") + "';")
+                + "f.action=" + jsString(safeAction) + ";"
                 + "f.submit();return true;})()";
     }
 

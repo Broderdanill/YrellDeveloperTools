@@ -36,6 +36,7 @@ public final class MidTierSsoBrowser {
     private final Consumer<MidTierHttpClient.Result> completed;
     private final Consumer<String> failed;
     private boolean submitted;
+    private String selectedFormServer;
     private boolean finished;
     private boolean loginPosted;
     private boolean redirectedToConfigLogin;
@@ -116,7 +117,8 @@ public final class MidTierSsoBrowser {
                     fail("MidTier Configuration Tool authorization was not valid after the request. Result unknown.");
                     return;
                 }
-                String prefix = "Form " + formName + " for server " + target.server();
+                String prefix = "Form " + formName + " for server "
+                        + (selectedFormServer == null ? target.server() : selectedFormServer);
                 if (mode == 0 && Pattern.compile(Pattern.quote(prefix) + "\\s+is cleaned\\s*!", Pattern.CASE_INSENSITIVE)
                         .matcher(message).find()) {
                     success(MidTierHttpClient.Outcome.CLEANED, message);
@@ -149,9 +151,13 @@ public final class MidTierSsoBrowser {
             }
             if (samePage(uri, page)) {
                 String check = evaluate(MidTierBrowserScript.preflight(target.baseUrl(), mode, target.server()));
-                if ("READY".equals(check)) {
+                if ((mode == 0 && check.startsWith("READY|"))
+                        || (mode != 0 && "READY".equals(check))) {
+                    selectedFormServer = mode == 0 ? check.substring("READY|".length()) : null;
                     submitted = true;
-                    status.accept("Configuration Tool session verified. Submitting cache flush...");
+                    status.accept(mode == 0
+                            ? "MidTier server selected: " + selectedFormServer + ". Submitting form cache flush..."
+                            : "Configuration Tool session verified. Submitting full cache flush...");
                     if (!browser.execute(MidTierBrowserScript.submit(target.baseUrl(), mode, target.server(), formName))) {
                         submitted = false;
                         fail("Unable to submit MidTier browser form. No flush was sent.");

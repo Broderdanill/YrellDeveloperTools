@@ -10,6 +10,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
@@ -28,6 +29,7 @@ public final class MidTierFlushDialog extends Dialog {
     private Combo operationChoice;
     private Label status;
     private Composite browserArea;
+    private Button browserToggle;
     private GridData browserLayout;
     private MidTierSsoBrowser ssoBrowser;
     private volatile boolean running;
@@ -73,6 +75,13 @@ public final class MidTierFlushDialog extends Dialog {
         GridData statusLayout = new GridData(SWT.FILL, SWT.TOP, true, false);
         statusLayout.horizontalSpan = 2;
         status.setLayoutData(statusLayout);
+        browserToggle = new Button(root, SWT.PUSH);
+        browserToggle.setText("Show browser / login");
+        browserToggle.setEnabled(false);
+        GridData toggleLayout = new GridData(SWT.BEGINNING, SWT.CENTER, false, false);
+        toggleLayout.horizontalSpan = 2;
+        browserToggle.setLayoutData(toggleLayout);
+        browserToggle.addListener(SWT.Selection, event -> setBrowserVisible(browserLayout.exclude));
         browserArea = new Composite(root, SWT.NONE);
         browserArea.setLayout(new FillLayout());
         browserLayout = new GridData(SWT.FILL, SWT.FILL, true, true, 2, 1);
@@ -82,6 +91,18 @@ public final class MidTierFlushDialog extends Dialog {
         browserArea.setVisible(false);
         browserArea.setLayoutData(browserLayout);
         return root;
+    }
+    /** Toggle the *same* SWT Browser; hiding it never clears its RSSO cookies. */
+    private void setBrowserVisible(boolean visible) {
+        Shell shell = getShell();
+        if (shell == null || shell.isDisposed() || browserArea == null || browserArea.isDisposed()) return;
+        browserLayout.exclude = !visible;
+        browserArea.setVisible(visible);
+        browserToggle.setText(visible ? "Hide browser / login" : "Show browser / login");
+        if (visible) {
+            shell.setSize(Math.max(shell.getSize().x, 900), Math.max(shell.getSize().y, 720));
+        }
+        shell.layout(true, true);
     }
     @Override protected void createButtonsForButtonBar(Composite parent) {
         createButton(parent, IDialogConstants.OK_ID, "Flush now", false);
@@ -146,8 +167,9 @@ public final class MidTierFlushDialog extends Dialog {
         if (shell == null || shell.isDisposed()) return;
         try {
             if (ssoBrowser != null && !ssoBrowser.control().isDisposed()) ssoBrowser.control().dispose();
-            browserLayout.exclude = false;
-            browserArea.setVisible(true);
+            // Keep browser collapsed by default, including during automatic RSSO.
+            // If manual login is required, the user can expand the same live
+            // browser instance without restarting its session.
             ssoBrowser = new MidTierSsoBrowser(browserArea, target, mode, form,
                     target.authenticationMethod() == MidTierConfiguration.AuthenticationMethod.AUTO
                         ? () -> MidTierStudioCredentials.forServer(context.server()) : null,
@@ -157,8 +179,8 @@ public final class MidTierFlushDialog extends Dialog {
                         Log.warn("MidTier browser SSO: " + message);
                         updateStatus(message, true);
                     });
+            browserToggle.setEnabled(true);
             shell.layout(true, true);
-            shell.setSize(Math.max(shell.getSize().x, 900), Math.max(shell.getSize().y, 720));
             ssoBrowser.start();
         } catch (RuntimeException e) {
             Log.error("MidTier browser-based SSO could not start", e);
@@ -167,14 +189,15 @@ public final class MidTierFlushDialog extends Dialog {
     }
     private void browserStatus(String message) {
         if (status != null && !status.isDisposed()) {
-            status.setText(message);
+            status.setText(message + (browserLayout.exclude
+                    ? "  (Click Show browser / login if interaction is required.)" : ""));
             getShell().layout(true, true);
         }
     }
     private void completeSuccess(MidTierHttpClient.Result result, String form) {
         String message = switch (result.outcome()) {
-            case CLEANED -> "Cache flushed: " + form + " (" + context.server() + ")";
-            case ALREADY_EMPTY -> "Already empty: " + form + " (" + context.server() + ")";
+            case CLEANED -> "Cache flushed: " + result.message();
+            case ALREADY_EMPTY -> "Already empty: " + result.message();
             case ACCEPTED_UNVERIFIED -> "MidTier request completed, but result not verified: " + result.message();
         };
         Log.info("MidTier cache operation: " + message);

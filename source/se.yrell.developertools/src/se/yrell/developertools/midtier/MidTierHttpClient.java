@@ -129,15 +129,29 @@ public final class MidTierHttpClient {
             if (form.fields.getOrDefault("cfgStok", "").isBlank()) {
                 throw new IOException("MidTier cfgStok is missing. No flush was sent.");
             }
-            if (mode == 0 && !form.servers.contains(server)) {
-                throw new IOException("AR Server '" + server + "' is missing from MidTier's server list. No flush was sent.");
+            String actualServer = server;
+            if (mode == 0) {
+                if (form.servers.isEmpty()) throw new IOException("MidTier server list is empty. No flush was sent.");
+                if (form.servers.size() == 1) actualServer = form.servers.iterator().next();
+                else if (!form.servers.contains(server)) {
+                    String candidate = null;
+                    for (String entry : form.servers) {
+                        if (entry.equalsIgnoreCase(server)) {
+                            if (candidate != null) throw new IOException("Multiple AR servers match; no flush was sent.");
+                            candidate = entry;
+                        }
+                    }
+                    if (candidate == null) throw new IOException("Multiple AR servers, none matching '" + server
+                            + "'. No flush was sent.");
+                    actualServer = candidate;
+                }
             }
             URI action = resolveFormAction(page.uri(), form.action,
                     "servlet/GoatConfigServlet", "Cache", mode == 0 ? "form_cleanup" : null);
             Map<String, String> fields = new LinkedHashMap<>(form.fields);
             if (mode == 0) {
                 fields.put("form_flush", "Yes");
-                fields.put("server", server);
+                fields.put("server", actualServer);
                 fields.put("form_name", formName);
             } else {
                 fields.put("cache_flush", mode == 1 ? "Yes" : "No");
@@ -150,7 +164,7 @@ public final class MidTierHttpClient {
             }
             String feedback = String.join(" ", result.statusTexts).replaceAll("\\s+", " ").trim();
             if (mode == 0) {
-                String prefix = "Form " + formName + " for server " + server;
+                String prefix = "Form " + formName + " for server " + actualServer;
                 if (Pattern.compile(Pattern.quote(prefix) + "\\s+is cleaned\\s*!", Pattern.CASE_INSENSITIVE)
                         .matcher(feedback).find()) return new Result(Outcome.CLEANED, feedback, response.statusCode());
                 if (Pattern.compile(Pattern.quote(prefix) + "\\s+doesn['’]?t exists? in cache", Pattern.CASE_INSENSITIVE)
@@ -196,7 +210,7 @@ public final class MidTierHttpClient {
             verifyNavigable(current, body != null);
             HttpRequest.Builder req = HttpRequest.newBuilder(current).timeout(TIMEOUT)
                     .header("Accept", "text/html,application/xhtml+xml")
-                    .header("User-Agent", "Mozilla/5.0 (compatible; YrellDeveloperTools/0.1.55; Java/17)");
+                    .header("User-Agent", "Mozilla/5.0 (compatible; YrellDeveloperTools/0.1.56; Java/17)");
             if (body != null) {
                 String path = current.getPath().endsWith("/ConfigServlet")
                         ? "shared/config/config.jsp"
@@ -271,26 +285,38 @@ public final class MidTierHttpClient {
     private static int effectivePort(URI u) {
         return u.getPort() != -1 ? u.getPort() : ("https".equalsIgnoreCase(u.getScheme()) ? 443 : 80);
     }
+    /**
+     * BMC may render an absolute HTTP servlet action using a backend host
+     * behind a TLS-terminating proxy. Validate the servlet path and exact
+     * action parameters, then always POST to the configured MidTier origin.
+     * Never send credentials/cfgStok to the origin in the HTML form action.
+     */
     private URI resolveFormAction(URI document, String rawAction, String expectedPath, String actionValue, String opType)
             throws IOException {
         if (rawAction == null || rawAction.isBlank()) throw new IOException("No form action supplied by MidTier.");
-        URI action = document.resolve(rawAction.replace("&amp;", "&"));
-        verifyOriginAndPath(action);
-        if (!action.getPath().equals(base.resolve(expectedPath).getPath())) throw new IOException("Unexpected MidTier form endpoint.");
+        URI action;
+        try { action = document.resolve(rawAction.replace("&amp;", "&")); }
+        catch (IllegalArgumentException e) { throw new IOException("Invalid form action URI.", e); }
+        URI expected = base.resolve(expectedPath);
+        if (!action.getPath().equals(expected.getPath()) || action.getRawFragment() != null
+                || action.getUserInfo() != null
+                || !("https".equalsIgnoreCase(action.getScheme()) || "http".equalsIgnoreCase(action.getScheme()))) {
+            throw new IOException("Unexpected MidTier form endpoint. No POST was sent.");
+        }
         String query = action.getRawQuery() == null ? "" : action.getRawQuery();
         Map<String, String> params = new LinkedHashMap<>();
-        for (String kv : query.split("&")) {
+        for (String kv : query.split("&", -1)) {
             int i = kv.indexOf('=');
-            if (i > 0) {
-                if (params.putIfAbsent(kv.substring(0, i), kv.substring(i + 1)) != null)
-                    throw new IOException("Ambiguous MidTier action query.");
-            }
+            if (i <= 0 || params.putIfAbsent(kv.substring(0, i), kv.substring(i + 1)) != null)
+                throw new IOException("Ambiguous MidTier form action query. No POST was sent.");
         }
-        if (!actionValue.equals(params.get("action")) ||
-                (opType != null && !opType.equals(params.get("op_type")))) {
-            throw new IOException("Unexpected MidTier form action parameters.");
+        int expectedCount = opType == null ? 1 : 2;
+        if (params.size() != expectedCount || !actionValue.equals(params.get("action"))
+                || (opType != null && !opType.equals(params.get("op_type")))) {
+            throw new IOException("Unexpected MidTier form action parameters. No POST was sent.");
         }
-        return action;
+        return base.resolve(expectedPath + "?action=" + actionValue
+                + (opType == null ? "" : "&op_type=" + opType));
     }
     private static boolean isSuccessful(HttpResponse<?> response) { return response.statusCode() >= 200 && response.statusCode() < 300; }
     private static boolean isLogin(Parsed page) { return page.forms.containsKey("loginForm"); }

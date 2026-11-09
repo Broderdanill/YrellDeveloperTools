@@ -21,18 +21,19 @@ function fixture(type, opts={}) {
     form_name:{value:''}, form_flush:{value:'Yes'},
     cache_flush:{value:'No'}, cache_flush_allpods:{value:'No'}
   };
+  if (opts.servers) fields.server.options=opts.servers.map(value=>({value}));
   const serverVisible = {value:'arserver',disabled:true};
   const loginForm = {method:'post',getAttribute(name){return name==='action'?
      (opts.loginAction || base+'/servlet/ConfigServlet?action=logon'):null;},
      querySelector(query){const m=query.match(/name="([^"]+)"/);return m?fields[m[1]]||null:null;},
      querySelectorAll(query){return query.indexOf('servername')>=0?[serverVisible,fields.servername]:[];},
      submit(){posted++;}};
-  const cacheForm = {getAttribute(name){return name==='action'?
-    (opts.cacheAction || base+'/servlet/GoatConfigServlet?action=Cache&op_type=form_cleanup'):null;},
-    elements:{namedItem(name){return fields[name]||null;}}, submit(){posted++;}};
-  const fullForm = {getAttribute(name){return name==='action'?
-    (opts.cacheAction || base+'/servlet/GoatConfigServlet?action=Cache'):null;},
-    elements:{namedItem(name){return fields[name]||null;}}, submit(){posted++;}};
+  const cacheForm = {method:'post',action:opts.cacheAction||base+'/servlet/GoatConfigServlet?action=Cache&op_type=form_cleanup',
+    getAttribute(name){return name==='action'?this.action:null;},
+    elements:{namedItem(name){return fields[name]||null;}},submit(){posted++;}};
+  const fullForm = {method:'post',action:opts.cacheAction||base+'/servlet/GoatConfigServlet?action=Cache',
+    getAttribute(name){return name==='action'?this.action:null;},
+    elements:{namedItem(name){return fields[name]||null;}},submit(){posted++;}};
   const forms = {namedItem(name){
     if(name==='loginForm')return type==='login'?loginForm:null;
     if(name==='cache_clenaup_form')return type==='form'?cacheForm:null;
@@ -92,18 +93,40 @@ check(run('submit',f),false,'cross origin login not posted');check(f.posted,0,'n
 f=fixture('login',{loginAction:'https://mt.example/arsys/servlet/ConfigServlet?action=logon&bogus=1'});
 check(run('check',f),'UNEXPECTED_LOGIN_ACTION','extra query parameter login denied');
 f=fixture('form');check(run('state',f),'CACHE_FORM','form recognized');
-check(run('preflightForm',f),'READY','form preflight');
+check(run('preflightForm',f),'READY|arserver','form preflight');
 check(run('submitForm',f),true,'form submit');check(f.posted,1,'form sent once');
 check(f.fields.form_name.value,'User','correct form');check(f.fields.form_flush.value,'Yes','flush flag');
 f=fixture('form',{missingToken:true});check(run('preflightForm',f),'ERROR: Missing cfgStok','token required');
+// TLS-terminating proxies can produce absolute http://internal:8080 actions.
+// We rewrite them to the configured HTTPS origin, never send cfgStok to the internal address.
+f=fixture('form',{cacheAction:'http://internal-mt:8080/arsys/servlet/GoatConfigServlet?action=Cache&op_type=form_cleanup'});
+check(run('preflightForm',f),'READY|arserver','absolute internal MidTier action accepted');
+check(run('submitForm',f),true,'internal action submitted on configured origin');
+check(f.cacheForm.action,'https://mt.example/arsys/servlet/GoatConfigServlet?action=Cache&op_type=form_cleanup','form action rewritten securely');
+check(f.posted,1,'only canonical form posted');
 f=fixture('form',{cacheAction:'https://evil.example/arsys/servlet/GoatConfigServlet?action=Cache&op_type=form_cleanup'});
-check(run('preflightForm',f),'ERROR: Unexpected form action','no external target');
-check(run('submitForm',f),false,'no external submit');check(f.posted,0,'no flush sent');
+check(run('preflightForm',f),'READY|arserver','same BMC servlet path on foreign-origin action is normalized');
+check(run('submitForm',f),true,'foreign action rewritten rather than followed');
+check(f.cacheForm.action,'https://mt.example/arsys/servlet/GoatConfigServlet?action=Cache&op_type=form_cleanup','no token sent to foreign origin');
+f=fixture('form',{cacheAction:'https://evil.example/arsys/servlet/EvilServlet?action=Cache&op_type=form_cleanup'});
+check(run('preflightForm',f),'ERROR: Unexpected form action path','different servlet path denied');
+check(run('submitForm',f),false,'different servlet not submitted');check(f.posted,0,'no unsafe submit');
+// A single option is authoritative even if Developer Studio's server is an alias.
+f=fixture('form',{servers:['','AR-PROD']});
+check(run('preflightForm',f),'READY|AR-PROD','single listed AR server chosen');
+check(run('submitForm',f),true,'single listed AR server submitted');
+check(f.fields.server.value,'AR-PROD','dropdown set from MidTier');
+// Multiple options require a unique matching connected server.
+f=fixture('form',{servers:['','server1','arserver']});
+check(run('preflightForm',f),'READY|arserver','select studio server from multiple');
+f=fixture('form',{servers:['','server1','server2']});
+check(run('preflightForm',f),'ERROR: Multiple AR servers; no unique match','ambiguous multiple servers denied');
+check(run('submitForm',f),false,'ambiguous server never submitted');
 f=fixture('form',{cacheAction:'https://mt.example/arsys/servlet/GoatConfigServlet?op_type=form_cleanup&action=Cache'});
-check(run('preflightForm',f),'READY','reordered valid parameters');
+check(run('preflightForm',f),'READY|arserver','reordered valid parameters');
 f=fixture('form',{cacheAction:'https://mt.example/arsys/servlet/GoatConfigServlet?action=Cache&op_type=form_cleanup&action=Cache'});
 check(run('preflightForm',f),'ERROR: Invalid cleanup action','duplicate params denied');
-f=fixture('all');check(run('preflightAll',f),'READY','full flush preflight');check(run('submitAll',f),true,'full flush submitted');
+f=fixture('all',{cacheAction:'http://backend:8080/arsys/servlet/GoatConfigServlet?action=Cache'});check(run('preflightAll',f),'READY','reverse proxied full flush preflight');check(run('submitAll',f),true,'full flush submitted');check(f.fullForm.action,'https://mt.example/arsys/servlet/GoatConfigServlet?action=Cache','full flush action rewritten securely');
 check(f.fields.cache_flush.value,'Yes','full flush flag');check(f.fields.cache_flush_allpods.value,'No','all pods off');
 f=fixture('all');check(run('preflightPods',f),'READY','pods preflight');check(run('submitPods',f),true,'pods flush submitted');
 check(f.fields.cache_flush.value,'No','full flush off');check(f.fields.cache_flush_allpods.value,'Yes','all pods flag');

@@ -1,6 +1,15 @@
+## 0.1.56 — MidTier form actions, server selection and collapsible browser (2026-11-09)
+
+- Correct the SWT Browser `ERROR: Unexpected form action` problem for MidTier Configuration Tool served behind a reverse proxy / TLS terminator. Validate the original BMC servlet path, POST method, `cfgStok` and mode-specific query parameters, then rewrite the form action to the configured MidTier origin before submission. Never submit a token to a foreign or internal action origin.
+- Apply the same safe action normalization for selected-form flush, full MidTier flush and all-pods flush.
+- For a form flush, select the sole non-empty Server List option when only one exists; otherwise require a unique match for the current Developer Studio AR-server. The form name is populated before submitting BMC's original form. Fail rather than guessing when multiple servers are ambiguous.
+- Keep the embedded SSO browser collapsed by default. Add **Show browser / login** and **Hide browser / login** toggle; preserving its live session across toggles. The status guides the user to expand it when manual login is required.
+- The browser still requires the expected BMC servlet path and token, does not bypass Configuration Tool authorization, and does not send credentials to an IdP. Automatic login still needs verification on a real Windows RSSO system.
+- Extend ES5 DOM regression tests with reverse-proxy/internal HTTP actions, wrong servlet paths, single-/multiple-server selection, and full-cache action normalization.
+
 # Changelog
 
-## 0.1.55 — legacy SWT Browser JavaScript compatibility (2026-11-09)
+## 0.1.56 — legacy SWT Browser JavaScript compatibility (2026-11-09)
 
 - Fixed `org.eclipse.swt.SWTException: Property or method 'includes' is not supported` when the Windows SWT Browser uses MSHTML / an older Internet Explorer JavaScript engine.
 - Replaced JavaScript `String.includes`, `Array.from`, the `URL` constructor and `URL.searchParams` throughout the dynamically injected MidTier browser scripts with ES5-compatible alternatives.
