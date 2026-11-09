@@ -15,8 +15,31 @@ import java.util.Map;
 public final class MidTierConfiguration {
     private MidTierConfiguration() { }
 
-    public record Mapping(String server, String baseUrl, boolean allowHttpCredentials) {
-        public Mapping(String server, String baseUrl) { this(server, baseUrl, false); }
+    public record Mapping(String server, String baseUrl, boolean allowHttpCredentials, String ssoBaseUrl) {
+        public Mapping(String server, String baseUrl) { this(server, baseUrl, false, ""); }
+        public Mapping(String server, String baseUrl, boolean allowHttpCredentials) {
+            this(server, baseUrl, allowHttpCredentials, "");
+        }
+    }
+
+    /** An optional explicit HTTPS allowlist entry for a separate SSO origin/context. */
+    public static String normalizeSsoUrl(String raw) {
+        if (raw == null || raw.isBlank()) return "";
+        URI uri;
+        try {
+            uri = new URI(raw.trim());
+            if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null
+                    || uri.getUserInfo() != null || uri.getRawQuery() != null || uri.getRawFragment() != null
+                    || uri.getPort() > 65535 || uri.getPort() < -1) {
+                throw new IllegalArgumentException("SSO URL must be an HTTPS URL without user, query or fragment.");
+            }
+            String path = uri.getPath();
+            if (path == null || path.isBlank() || "/".equals(path) || path.contains("..") || uri.getRawPath().contains("%")) {
+                throw new IllegalArgumentException("Specify the SSO context, e.g. https://sso.example.com/rsso.");
+            }
+            while (path.endsWith("/")) path = path.substring(0, path.length() - 1);
+            return new URI("https", null, uri.getHost().toLowerCase(Locale.ROOT), uri.getPort(), path, null, null).toASCIIString();
+        } catch (URISyntaxException e) { throw new IllegalArgumentException("Invalid SSO URL.", e); }
     }
 
     /** Accept a Mid Tier context root or an existing Configuration Tool page URL. */
@@ -83,20 +106,22 @@ public final class MidTierConfiguration {
 
     /** Stable, versioned plain-string storage with Base64URL fields to avoid delimiters. */
     public static String encode(Collection<Mapping> entries) {
-        StringBuilder result = new StringBuilder("v2\n");
+        StringBuilder result = new StringBuilder("v3\n");
         Map<String, Mapping> unique = new LinkedHashMap<>();
         for (Mapping entry : entries) {
             String server = normalizeServer(entry.server());
             String baseUrl = normalizeBaseUrl(entry.baseUrl());
             String key = server.toLowerCase(Locale.ROOT);
             if (unique.containsKey(key)) throw new IllegalArgumentException("Duplicate AR Server: " + server);
-            unique.put(key, new Mapping(server, baseUrl, entry.allowHttpCredentials()));
+            unique.put(key, new Mapping(server, baseUrl, entry.allowHttpCredentials(), normalizeSsoUrl(entry.ssoBaseUrl())));
         }
         Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
         for (Mapping entry : unique.values()) {
             result.append(encoder.encodeToString(entry.server().getBytes(StandardCharsets.UTF_8))).append(':')
                     .append(encoder.encodeToString(entry.baseUrl().getBytes(StandardCharsets.UTF_8)))
-                    .append(':').append(entry.allowHttpCredentials() ? "1" : "0").append('\n');
+                    .append(':').append(entry.allowHttpCredentials() ? "1" : "0")
+                    .append(':').append(encoder.encodeToString(entry.ssoBaseUrl().getBytes(StandardCharsets.UTF_8)))
+                    .append('\n');
         }
         return result.toString();
     }
@@ -105,7 +130,7 @@ public final class MidTierConfiguration {
         List<Mapping> result = new ArrayList<>();
         if (text == null || text.isBlank()) return result;
         String[] lines = text.split("\\r?\\n");
-        if (lines.length < 1 || !("v1".equals(lines[0]) || "v2".equals(lines[0]))) return result;
+        if (lines.length < 1 || !("v1".equals(lines[0]) || "v2".equals(lines[0]) || "v3".equals(lines[0]))) return result;
         Base64.Decoder decoder = Base64.getUrlDecoder();
         for (int i = 1; i < lines.length; i++) {
             int div = lines[i].indexOf(':');
@@ -115,8 +140,10 @@ public final class MidTierConfiguration {
                 int second = lines[i].indexOf(':', div + 1);
                 String urlValue = second < 0 ? lines[i].substring(div + 1) : lines[i].substring(div + 1, second);
                 String url = normalizeBaseUrl(new String(decoder.decode(urlValue), StandardCharsets.UTF_8));
-                boolean allowHttp = second >= 0 && "1".equals(lines[i].substring(second + 1));
-                if (lookup(result, server) == null) result.add(new Mapping(server, url, allowHttp));
+                int third = second < 0 ? -1 : lines[i].indexOf(':', second + 1);
+                boolean allowHttp = second >= 0 && "1".equals(lines[i].substring(second + 1, third < 0 ? lines[i].length() : third));
+                String sso = third < 0 ? "" : normalizeSsoUrl(new String(decoder.decode(lines[i].substring(third + 1)), StandardCharsets.UTF_8));
+                if (lookup(result, server) == null) result.add(new Mapping(server, url, allowHttp, sso));
             } catch (IllegalArgumentException ignored) { /* Skip corrupted row, never invent a target. */ }
         }
         return result;

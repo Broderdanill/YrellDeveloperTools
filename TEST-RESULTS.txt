@@ -36,7 +36,9 @@ AGENT-FAST com/bmc/arsys/studio/commonui/common/objectlist/OverlayObjectListFilt
 AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/PropertyFilter: MATCH (1422 bytes)
 AGENT-FAST com/bmc/arsys/studio/model/internal/providers/SQLCommands: MATCH (29003 bytes)
 == MidTierCacheRegressionTest ==
-MidTier cache regression tests: 21 PASS (embedded mock HTTP server)
+MidTier cache regression tests: 35 PASS (embedded mock HTTP server)
 == agent bootstrap ==
 PASS: 6 Fast Forms checkbox state assertions
 ALL TESTS PASSED
+
+0.1.52: New trusted SSO GET redirection checks, direct-login fallback and redirection safety regression tests passed.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.52 — RSSO-safe redirects and MidTier diagnostics (2026-11-09)
+
+- Fixes generic `MidTier attempted to navigate outside the configured context` during legitimate RSSO redirect discovery. GET-only SSO redirects are supported to same-origin `/rsso`/`/hsso`, or to an optional explicitly configured HTTPS SSO URL per MidTier mapping.
+- Retains strict same-origin and `/arsys` checks for both login and flush POST targets; no AR credentials or `cfgStok` are forwarded through redirects. Blocks HTTP 307/308 for POST, downgrade/cross-origin GETs not in the allowlist, and similarly prefixed non-context paths.
+- When the cache page leads to SSO that requires interaction, attempts direct BMC Configuration Tool login using Studio credentials before failing; does not claim Java HttpClient can execute arbitrary browser/SSO flows.
+- Errors now include a safe, query-stripped redirect destination and a full exception/stack trace in Eclipse Error Log. No POST body, password or cookie is logged intentionally.
+- Preferences can optionally store an RSSO HTTPS context root per AR-server mapping. v1/v2 entries remain compatible; mappings persist as v3.
+- Extended embedded mock-server and navigation-policy regression tests: 35 MidTier assertions; Java 17 compile, original ASM tests and -javaagent JVM startup passed.
+- **Still requires Windows/live testing** for actual RSSO behavior; not all identity providers support headless HTTP or expose reusable credentials.
+
 ## 0.1.51 — automatic MidTier login using Developer Studio credentials (2026-11-09)
 
 - Replaced SWT Browser login with a Java 17 `HttpClient` based on the verified MidTier Configuration Tool workflow.

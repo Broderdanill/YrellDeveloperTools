@@ -18,6 +18,7 @@ import org.eclipse.swt.widgets.Text;
 public final class MidTierMappingDialog extends TitleAreaDialog {
     private Combo serverField;
     private Text urlField;
+    private Text ssoUrlField;
     private Button allowHttp;
     private MidTierConfiguration.Mapping result;
     private final MidTierConfiguration.Mapping initial;
@@ -44,13 +45,17 @@ public final class MidTierMappingDialog extends TitleAreaDialog {
         urlField.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         if (initial != null) urlField.setText(initial.baseUrl());
         else urlField.setText("https://midtier.example.com/arsys");
+        new Label(fields, SWT.NONE).setText("SSO redirect URL (optional)");
+        ssoUrlField = new Text(fields, SWT.BORDER);
+        ssoUrlField.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        ssoUrlField.setText(initial == null || initial.ssoBaseUrl() == null ? "" : initial.ssoBaseUrl());
         new Label(fields, SWT.NONE).setText("");
         allowHttp = new Button(fields, SWT.CHECK);
         allowHttp.setText("Allow sending Studio credentials over unencrypted HTTP (test only)");
         allowHttp.setSelection(initial != null && initial.allowHttpCredentials());
         new Label(fields, SWT.NONE).setText("");
         Label hint = new Label(fields, SWT.WRAP);
-        hint.setText("Use the URL of the specific MidTier, such as http://ars.sandbox:8080/arsys. For a cluster, configure the correct instance; a load balancer does not necessarily reach every pod.");
+        hint.setText("MidTier: https://midtier.example.com/arsys. If login redirects to a SEPARATE SSO host, optionally allow its exact HTTPS context here, e.g. https://sso.example.com/rsso. This never authorizes sending AR credentials to SSO. A Java HTTP client cannot run browser-based interactive SSO flows.");
         GridData hintData = new GridData(SWT.FILL, SWT.TOP, true, false);
         hintData.widthHint = 480;
         hint.setLayoutData(hintData);
@@ -60,7 +65,8 @@ public final class MidTierMappingDialog extends TitleAreaDialog {
         try {
             result = new MidTierConfiguration.Mapping(
                     MidTierConfiguration.normalizeServer(serverField.getText()),
-                    MidTierConfiguration.normalizeBaseUrl(urlField.getText()), allowHttp.getSelection());
+                    MidTierConfiguration.normalizeBaseUrl(urlField.getText()), allowHttp.getSelection(),
+                    MidTierConfiguration.normalizeSsoUrl(ssoUrlField.getText()));
             super.okPressed();
         } catch (IllegalArgumentException e) {
             setErrorMessage(e.getMessage());

@@ -59,7 +59,7 @@ public final class MidTierFlushDialog extends Dialog {
         operationChoice.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         operationChoice.addListener(SWT.Selection, event -> formChoice.setEnabled(operationChoice.getSelectionIndex() == 0));
         Label note = new Label(root, SWT.WRAP);
-        note.setText("Automatic login uses the username and password of the connected Developer Studio AR Server. No password, session cookie or cfgStok is saved in plugin preferences. In RSSO sessions without a reusable password, automatic login cannot be performed. Full flushes can affect all users.");
+        note.setText("Automatic login uses the username and password of the connected Developer Studio AR Server. No password, session cookie or cfgStok is saved in plugin preferences. RSSO redirects can be followed for configured trusted SSO origins; browser-only SSO flows may still require interactive login. Full flushes can affect all users.");
         GridData noteLayout = new GridData(SWT.FILL, SWT.TOP, true, false);
         noteLayout.horizontalSpan = 2;
         noteLayout.widthHint = 520;
@@ -114,10 +114,11 @@ public final class MidTierFlushDialog extends Dialog {
                 return Status.CANCEL_STATUS;
             } catch (Exception e) {
                 // Never log credentials, cookies or the POST body.
-                Log.warn("MidTier cache operation failed for server " + context.server()
-                        + ", target " + target.baseUrl() + ": " + e.getClass().getSimpleName());
+                // Full stack trace in Eclipse Error Log. Never include POST bodies or session secrets.
+                Log.error("MidTier cache operation failed for server " + context.server()
+                        + ", target " + target.baseUrl(), e);
                 updateStatus("MidTier flush failed: " + e.getMessage(), true);
-                return new Status(IStatus.ERROR, "se.yrell.developertools", "MidTier flush failed");
+                return new Status(IStatus.ERROR, "se.yrell.developertools", "MidTier flush failed", e);
             }
         });
         job.setUser(false);

@@ -338,10 +338,13 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         serverColumn.setWidth(190);
         TableColumn urlColumn = new TableColumn(mappingsTable, SWT.LEFT);
         urlColumn.setText("MidTier URL");
-        urlColumn.setWidth(470);
+        urlColumn.setWidth(355);
+        TableColumn ssoColumn = new TableColumn(mappingsTable, SWT.LEFT);
+        ssoColumn.setText("SSO URL (optional)");
+        ssoColumn.setWidth(275);
         for (MidTierConfiguration.Mapping m : midTierMappings) {
             TableItem row = new TableItem(mappingsTable, SWT.NONE);
-            row.setText(new String[] {m.server(), m.baseUrl()});
+            row.setText(new String[] {m.server(), m.baseUrl(), m.ssoBaseUrl()});
         }
         Composite buttons = new Composite(parent, SWT.NONE);
         buttons.setLayout(new GridLayout(3, false));
@@ -359,7 +362,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
                 }
                 midTierMappings.add(mapping);
                 TableItem row = new TableItem(mappingsTable, SWT.NONE);
-                row.setText(new String[] {mapping.server(), mapping.baseUrl()});
+                row.setText(new String[] {mapping.server(), mapping.baseUrl(), mapping.ssoBaseUrl()});
                 mappingsTable.setSelection(row);
             }
         });
@@ -379,7 +382,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
                     }
                 }
                 midTierMappings.set(index, mapping);
-                mappingsTable.getItem(index).setText(new String[] {mapping.server(), mapping.baseUrl()});
+                mappingsTable.getItem(index).setText(new String[] {mapping.server(), mapping.baseUrl(), mapping.ssoBaseUrl()});
             }
         });
         Button remove = new Button(buttons, SWT.PUSH);
@@ -803,7 +806,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         } catch (Throwable ignored) {
             // Fall through to generic example.
         }
-        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.51.jar";
+        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.52.jar";
     }
 
     private boolean isValidDeveloperId(String developerIdText) {
