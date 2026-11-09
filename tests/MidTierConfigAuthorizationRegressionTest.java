@@ -22,10 +22,24 @@ public final class MidTierConfigAuthorizationRegressionTest {
         check(submit.contains("s\\\\\\\";alert(1)//"), "password escaped in JavaScript string");
         check(submit.contains("configLoginCheck") == false, "standalone JavaScript for SWT Browser");
         check(submit.contains("f.submit()"), "send BMC form in same browser session");
-        check(submit.contains("\"https://mt.example/arsys\""), "bound to configured MidTier URL");
+        check(submit.contains("https://mt.example/arsys/servlet/ConfigServlet"), "bound to configured MidTier endpoint");
         check(MidTierBrowserScript.resultProbe().contains("CONFIG_DENIED"), "no false success on denied POST");
         check(MidTierBrowserScript.preflight("https://mt.example/arsys", 0, "arserver").contains("cfgStok"),
                 "still require configuration session token before cache flush");
+        // No SWT Browser JavaScript may rely on the modern APIs missing from MSHTML.
+        for (String browserJs : new String[] { MidTierBrowserScript.pageState(),
+                MidTierBrowserScript.configLoginCheck("https://mt.example/arsys"),
+                MidTierBrowserScript.submitConfigLogin("https://mt.example/arsys", "arserver", "tester", "secret"),
+                MidTierBrowserScript.preflight("https://mt.example/arsys", 0, "arserver"),
+                MidTierBrowserScript.preflight("https://mt.example/arsys", 1, "arserver"),
+                MidTierBrowserScript.submit("https://mt.example/arsys", 0, "arserver", "User"),
+                MidTierBrowserScript.submit("https://mt.example/arsys", 2, "arserver", "User"),
+                MidTierBrowserScript.resultProbe() }) {
+            check(!browserJs.matches("(?s).*\\.includes\\s*\\(.*")
+                    && !browserJs.contains("Array.from(")
+                    && !browserJs.contains("new URL(")
+                    && !browserJs.contains(".searchParams"), "legacy browser scripts avoid unsupported APIs");
+        }
         System.out.println("MidTier Configuration Tool authorization tests: " + checks + " PASS");
     }
 }

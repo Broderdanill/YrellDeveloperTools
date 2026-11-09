@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.55 — legacy SWT Browser JavaScript compatibility (2026-11-09)
+
+- Fixed `org.eclipse.swt.SWTException: Property or method 'includes' is not supported` when the Windows SWT Browser uses MSHTML / an older Internet Explorer JavaScript engine.
+- Replaced JavaScript `String.includes`, `Array.from`, the `URL` constructor and `URL.searchParams` throughout the dynamically injected MidTier browser scripts with ES5-compatible alternatives.
+- Kept strict same-origin, exact form action and query parameter verification before posting AR credentials or cache flush; duplicate, unexpected and cross-origin action parameters are rejected.
+- Added regression coverage that actually evaluates the generated scripts in a simulated legacy JavaScript environment with modern browser APIs disabled. Covered login, authorization rejection, form-specific flush, full flush, all-pods flush and confirmation parsing (44 checks).
+- Preserved RSSO/browser flow and Configuration Tool authorization handling introduced in 0.1.54, as well as Automatic Field IDs and other existing features.
+- A real Windows SWT Browser and live RSSO login are still needed for end-to-end verification; tests simulate legacy browser API availability, not a real IE/MSHTML runtime.
+
 ## 0.1.54 — Configuration Tool authorization after RSSO (2026-11-09)
 
 - Corrected the two-attempt RSSO loop that treated a MidTier `Configuration Tool authorization failed` page as an ordinary browser redirect. RSSO authentication and Configuration Tool administrator authentication are separate states.
