@@ -7,6 +7,11 @@ import java.util.List;
 import java.util.Set;
 
 import org.eclipse.ui.IEditorPart;
+import org.eclipse.ui.IWorkbenchPart;
+import org.eclipse.jface.viewers.ISelection;
+import org.eclipse.jface.viewers.IStructuredSelection;
+import com.bmc.arsys.studio.model.item.FormItem;
+import com.bmc.arsys.studio.model.item.APIItem;
 
 import com.bmc.arsys.studio.commonui.common.EditorInput;
 import com.bmc.arsys.studio.model.ar.IARWorkflow;
@@ -78,6 +83,42 @@ public final class MidTierEditorContext {
         }
         if (server.isEmpty() || forms.isEmpty()) return null;
         return new MidTierEditorContext(server, forms, editor instanceof WorkflowEditorBase);
+    }
+
+    /** Context-menu selections in BMC's Object List are APIItem instances. */
+    public static boolean supportsSelected(Object selected) {
+        return selected instanceof FormItem || selected instanceof WorkflowItem;
+    }
+
+    public static MidTierEditorContext captureSelected(ISelection selection) {
+        if (!(selection instanceof IStructuredSelection structured) || structured.size() != 1) return null;
+        return captureSelectedObject(structured.getFirstElement());
+    }
+
+    /** Server-only context is valid for toolbar full-cache actions, never a quick form flush. */
+    public static MidTierEditorContext forServer(String server) {
+        return clean(server).isEmpty() ? null : new MidTierEditorContext(server.trim(), List.of(), false);
+    }
+
+    /** A server or any BMC object selection identifies the active AR connection. */
+    public static MidTierEditorContext captureServerSelection(ISelection selection) {
+        if (!(selection instanceof IStructuredSelection structured) || structured.size() != 1) return null;
+        Object selected = structured.getFirstElement();
+        MidTierEditorContext object = captureSelectedObject(selected);
+        if (object != null) return object;
+        if (selected instanceof IStore store) return forServer(storeName(store));
+        if (selected instanceof APIItem item) return forServer(storeName(item.getStore()));
+        return null;
+    }
+
+    /** Never use an object's display title as a guessed form name. */
+    public static MidTierEditorContext captureSelectedObject(Object selected) {
+        if (!supportsSelected(selected)) return null;
+        APIItem item = (APIItem) selected;
+        String server = storeName(item.getStore());
+        String form = selected instanceof FormItem ? item.getName() : ((WorkflowItem) selected).getPrimaryForm();
+        if (server.isEmpty() || clean(form).isEmpty()) return null;
+        return new MidTierEditorContext(server, List.of(form), selected instanceof WorkflowItem);
     }
 
     private static void addAll(Set<String> out, Collection<String> values) {

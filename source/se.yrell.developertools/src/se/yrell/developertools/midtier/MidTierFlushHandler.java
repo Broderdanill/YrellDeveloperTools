@@ -7,6 +7,7 @@ import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.SWTError;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IEditorPart;
+import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.handlers.HandlerUtil;
 
 import se.yrell.developertools.ToolsPreferences;
@@ -18,11 +19,12 @@ public final class MidTierFlushHandler extends AbstractHandler {
             MessageDialog.openInformation(shell, "MidTier Cache Flush", "Enable MidTier Cache Flush in Yrell Developer Tools preferences first.");
             return null;
         }
-        IEditorPart editor = HandlerUtil.getActiveEditor(event);
-        MidTierEditorContext context = MidTierEditorContext.capture(editor);
+        IWorkbenchWindow window = HandlerUtil.getActiveWorkbenchWindow(event);
+        MidTierEditorContext context = MidTierFlushAvailability.current(window);
         if (context == null) {
             MessageDialog.openInformation(shell, "MidTier Cache Flush",
-                    "Open a saved form or workflow with a primary form before flushing cache.");
+                    "Select a configured AR server in Object List or open a form/workflow for that server."
+                    + " With multiple connections, select the intended server first.");
             return null;
         }
         MidTierConfiguration.Mapping target = MidTierConfiguration.lookup(

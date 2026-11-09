@@ -90,6 +90,12 @@ public final class MidTierSsoBrowser {
 
     public Browser control() { return browser; }
 
+    /** Progress cancellation must prevent any subsequent browser-side form submission. */
+    public void cancel() {
+        finished = true;
+        if (!browser.isDisposed()) browser.stop();
+    }
+
     public void start() {
         status.accept("Opening MidTier. Complete RSSO/Configuration Tool login if prompted...");
         if (!browser.setUrl(page.toASCIIString())) fail("Unable to open MidTier cache page in SWT browser.");

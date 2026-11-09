@@ -22,11 +22,11 @@ function fixture(type, opts={}) {
     cache_flush:{value:'No'}, cache_flush_allpods:{value:'No'}
   };
   if (opts.servers) fields.server.options=opts.servers.map(value=>({value}));
-  const serverVisible = {value:'arserver',disabled:true};
+  for (const [name, value] of Object.entries(fields)) value.name = name;
+  const serverVisible = {name:'servername',value:'arserver',disabled:true};
   const loginForm = {method:'post',getAttribute(name){return name==='action'?
      (opts.loginAction || base+'/servlet/ConfigServlet?action=logon'):null;},
-     querySelector(query){const m=query.match(/name="([^"]+)"/);return m?fields[m[1]]||null:null;},
-     querySelectorAll(query){return query.indexOf('servername')>=0?[serverVisible,fields.servername]:[];},
+     getElementsByTagName(tag){assert.equal(tag,'input');return [serverVisible,...Object.values(fields)];},
      submit(){posted++;}};
   const cacheForm = {method:'post',action:opts.cacheAction||base+'/servlet/GoatConfigServlet?action=Cache&op_type=form_cleanup',
     getAttribute(name){return name==='action'?this.action:null;},
@@ -56,9 +56,9 @@ function fixture(type, opts={}) {
       }
       return element;
     },
-    querySelectorAll(query){
-      assert.equal(query,'.status,.error,.LoginError');
-      return (opts.messages||[]).map(text=>({textContent:text}));
+    getElementsByTagName(tag){
+      assert.equal(tag,'*');
+      return (opts.messages||[]).map(text=>({className:'status',textContent:text}));
     }
   };
   const sandbox=vm.createContext({document,location:{href:at}});
@@ -132,5 +132,9 @@ f=fixture('all');check(run('preflightPods',f),'READY','pods preflight');check(ru
 check(f.fields.cache_flush.value,'No','full flush off');check(f.fields.cache_flush_allpods.value,'Yes','all pods flag');
 f=fixture('none',{messages:['Form User for server arserver is cleaned !']});
 check(run('result',f),'Form User for server arserver is cleaned !','success response text');
+f=fixture('none',{messages:["Form User for server arserver doesn't exists in cache ..."]});
+check(run('result',f),"Form User for server arserver doesn't exists in cache ...",'empty cache is a nonerror response');
+f=fixture('none',{body:'Form User for server arserver is cleaned !'});
+check(run('result',f),'Form User for server arserver is cleaned !','success without status class');
 f=fixture('none',{denied:true});check(run('result',f),'CONFIG_DENIED','auth failure response');
 console.log('Legacy SWT Browser ES5 DOM simulation: '+checks+' PASS');

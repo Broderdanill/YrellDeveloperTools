@@ -210,7 +210,7 @@ public final class MidTierHttpClient {
             verifyNavigable(current, body != null);
             HttpRequest.Builder req = HttpRequest.newBuilder(current).timeout(TIMEOUT)
                     .header("Accept", "text/html,application/xhtml+xml")
-                    .header("User-Agent", "Mozilla/5.0 (compatible; YrellDeveloperTools/0.1.56; Java/17)");
+                    .header("User-Agent", "Mozilla/5.0 (compatible; YrellDeveloperTools/0.1.57; Java/17)");
             if (body != null) {
                 String path = current.getPath().endsWith("/ConfigServlet")
                         ? "shared/config/config.jsp"

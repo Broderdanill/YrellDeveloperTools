@@ -1,4 +1,14 @@
-## 0.1.56 — MidTier form actions, server selection and collapsible browser (2026-11-09)
+## 0.1.57 — contextual quick flush, Eclipse Progress, and older SWT Browser support (2026-11-09)
+
+- Added **Flush MidTier Object** to the context menu of AR Form and workflow objects, and as an unbound Eclipse command for user-selected shortcuts in Preferences > General > Keys. Both submit a form flush directly without opening the action picker or requesting a second confirmation. For workflow objects use the primary form only. The popup uses the actual context-menu selection, not a stale open editor.
+- Extended the main-toolbar toilet icon visibility to configured connected AR server selection in Object List, not only an active form/workflow editor. A unique configured connected server is also supported when no object is open; its toolbar picker offers full cache/all pods only. Multiple connections without a unique target never guess.
+- Added preferences-time workbench reevaluation to refresh toolbar visibility when server mappings change.
+- Replaced blocking flush execution with user-visible Eclipse Progress Jobs and a **Details** action; the compact toolbar action picker closes as soon as the job starts. A contextual quick flush has no initial dialog even in the SSO path. Its browser view can be revealed from Progress if an interactive login is needed.
+- Corrected cache-result interpretation: `doesn't exists in cache` is normal **Already empty** and `is cleaned !` is success. Replaced `querySelectorAll` and `querySelector` in injected result/login scripts with legacy-compatible DOM traversal.
+- Added cancellable browser coordination to avoid a pending SSO page submitting a flush after the Progress Job was canceled.
+- Tested Java 17 compilation against supplied Developer Studio 26.1.1 build001 binaries, existing ASM and -javaagent audit, HTTP mock tests and ES5 browser simulation. Real Windows/SWT Browser and SSO integration still needs a live test.
+
+## 0.1.57 — MidTier form actions, server selection and collapsible browser (2026-11-09)
 
 - Correct the SWT Browser `ERROR: Unexpected form action` problem for MidTier Configuration Tool served behind a reverse proxy / TLS terminator. Validate the original BMC servlet path, POST method, `cfgStok` and mode-specific query parameters, then rewrite the form action to the configured MidTier origin before submission. Never submit a token to a foreign or internal action origin.
 - Apply the same safe action normalization for selected-form flush, full MidTier flush and all-pods flush.
@@ -9,7 +19,7 @@
 
 # Changelog
 
-## 0.1.56 — legacy SWT Browser JavaScript compatibility (2026-11-09)
+## 0.1.57 — legacy SWT Browser JavaScript compatibility (2026-11-09)
 
 - Fixed `org.eclipse.swt.SWTException: Property or method 'includes' is not supported` when the Windows SWT Browser uses MSHTML / an older Internet Explorer JavaScript engine.
 - Replaced JavaScript `String.includes`, `Array.from`, the `URL` constructor and `URL.searchParams` throughout the dynamically injected MidTier browser scripts with ES5-compatible alternatives.

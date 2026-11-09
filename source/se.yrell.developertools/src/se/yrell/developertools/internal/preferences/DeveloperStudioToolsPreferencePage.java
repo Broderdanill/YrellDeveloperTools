@@ -45,6 +45,7 @@ import se.yrell.developertools.ToolsPreferences;
 import se.yrell.developertools.inspector.ObjectInsightViewSupport;
 import se.yrell.developertools.keepalive.KeepAliveService;
 import se.yrell.developertools.midtier.MidTierConfiguration;
+import se.yrell.developertools.midtier.MidTierFlushAvailability;
 import se.yrell.developertools.midtier.MidTierMappingDialog;
 
 /**
@@ -470,6 +471,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         }
         saveValues();
         postSaveActions();
+        MidTierFlushAvailability.refreshToolbarVisibility();
         return true;
     }
 

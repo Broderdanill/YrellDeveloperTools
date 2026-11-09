@@ -43,6 +43,18 @@ public final class MidTierBrowserScript {
         function getElement(form,name){
           return form.elements.namedItem ? form.elements.namedItem(name) : form.elements[name];
         }
+        function findInput(form,name){
+          var list=form.getElementsByTagName('input');
+          for(var i=0;i<list.length;i++)if(list[i].name===name)return list[i];
+          return null;
+        }
+        function setInputValues(form,name,value){
+          var list=form.getElementsByTagName('input');var found=false;
+          for(var i=0;i<list.length;i++){
+            if(list[i].name===name&&!list[i].disabled){list[i].value=value;found=true;}
+          }
+          return found;
+        }
         function link(raw){
           var el=document.createElement('a');
           el.href=raw;
@@ -113,9 +125,9 @@ public final class MidTierBrowserScript {
                 + "var wanted=link(" + jsString(wanted) + ");"
                 + "if(!sameEndpoint(actual,wanted)||!queryEquals(actual.search,[['action','logon']])"
                 + "||String(f.method||'').toLowerCase()!=='post')return 'UNEXPECTED_LOGIN_ACTION';"
-                + "if(!f.querySelector('input[name=\"username\"]')||!f.querySelector('input[name=\"pwd\"]')"
-                + "||!f.querySelector('input[name=\"servername\"]'))return 'MISSING_LOGIN_FIELDS';"
-                + "var cfg=f.querySelector('input[name=\"isFromCfgTool\"]');"
+                + "if(!findInput(f,'username')||!findInput(f,'pwd')"
+                + "||!findInput(f,'servername'))return 'MISSING_LOGIN_FIELDS';"
+                + "var cfg=findInput(f,'isFromCfgTool');"
                 + "if(!cfg||cfg.value!=='true')return 'NOT_CONFIG_TOOL_LOGIN';"
                 + "return 'READY';})()";
     }
@@ -125,11 +137,10 @@ public final class MidTierBrowserScript {
         return "(function(){" + ES5_HELPERS
                 + "if(" + configLoginCheck(baseUrl) + "!=='READY')return false;"
                 + "var f=getForm('loginForm');"
-                + "f.querySelector('input[name=\"username\"]').value=" + jsString(user) + ";"
-                + "f.querySelector('input[name=\"pwd\"]').value=" + jsString(password) + ";"
-                + "var fields=f.querySelectorAll('input[name=\"servername\"]');"
-                + "for(var i=0;i<fields.length;i++){if(!fields[i].disabled)fields[i].value=" + jsString(server) + ";}"
-                + "var tz=f.querySelector('input[name=\"timezone\"]');"
+                + "if(!setInputValues(f,'username'," + jsString(user) + "))return false;"
+                + "if(!setInputValues(f,'pwd'," + jsString(password) + "))return false;"
+                + "if(!setInputValues(f,'servername'," + jsString(server) + "))return false;"
+                + "var tz=findInput(f,'timezone');"
                 + "if(tz){var zone='Europe/Stockholm';try{"
                 + "if(typeof Intl!=='undefined'&&Intl.DateTimeFormat){"
                 + "zone=Intl.DateTimeFormat().resolvedOptions().timeZone||zone;}}catch(ignore){}tz.value=zone;}"
@@ -219,16 +230,25 @@ public final class MidTierBrowserScript {
                 + "f.submit();return true;})()";
     }
 
-    /** Read-only extraction of BMC's confirmation message after form submission. */
+    /** Read-only result extraction with no querySelector APIs (legacy MSHTML/IE). */
     public static String resultProbe() {
         return "(function(){" + ES5_HELPERS
                 + "if(getForm('loginForm'))return 'LOGIN_REQUIRED';"
-                + "if(bodyText().toLowerCase().indexOf('configuration tool authorization failed')!==-1)"
+                + "var all=bodyText().replace(/\\s+/g,' ');"
+                + "if(all.toLowerCase().indexOf('configuration tool authorization failed')!==-1)"
                 + "return 'CONFIG_DENIED';"
-                + "var nodes=document.querySelectorAll('.status,.error,.LoginError');"
-                + "var parts=[];for(var i=0;i<nodes.length;i++){"
-                + "var value=trimText(typeof nodes[i].textContent==='string'?nodes[i].textContent:nodes[i].innerText||'');"
-                + "if(value)parts.push(value);}"
-                + "return trimText(parts.join(' ').replace(/\\s+/g,' ')).substring(0,1024);})()";
+                + "var nodes=document.getElementsByTagName('*');var parts=[];"
+                + "for(var i=0;i<nodes.length;i++){"
+                + "var cl=String(nodes[i].className||'').toLowerCase();"
+                + "if(!/(^|\\s)(status|error|loginerror)(\\s|$)/.test(cl))continue;"
+                + "var val=trimText(typeof nodes[i].textContent==='string'"
+                + "?nodes[i].textContent:(nodes[i].innerText||''));"
+                + "if(val)parts.push(val);}"
+                + "var message=trimText(parts.join(' ').replace(/\\s+/g,' '));"
+                + "if(!message){"
+                + "var m=all.match(/Form\\s+.+?\\s+for\\s+server\\s+.+?\\s+"
+                + "(?:is\\s+cleaned\\s*!|doesn['\u2019]?t\\s+exists?\\s+in\\s+cache[^.]*|does\\s+not\\s+exist\\s+in\\s+cache[^.]*)/i);"
+                + "if(m)message=m[0];}"
+                + "return message.substring(0,1024);})()";
     }
 }

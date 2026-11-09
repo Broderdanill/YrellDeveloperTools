@@ -48,6 +48,7 @@
    </extension>
 
    <extension point="org.eclipse.ui.commands">
+      <command id="se.yrell.developertools.commands.midTierFlushObject" name="Flush MidTier Object" description="Flush selected form or workflow primary form, in Eclipse Progress"/>
       <command id="se.yrell.developertools.commands.midTierFlush" name="MidTier Cache Flush" description="Flush the cache for the current form or workflow on a configured MidTier"/>
       <command
             id="se.yrell.developertools.commands.removeFromView"
@@ -55,6 +56,7 @@
    </extension>
 
    <extension point="org.eclipse.ui.handlers">
+      <handler commandId="se.yrell.developertools.commands.midTierFlushObject" class="se.yrell.developertools.midtier.MidTierFlushObjectHandler"/>
       <handler commandId="se.yrell.developertools.commands.midTierFlush"
                class="se.yrell.developertools.midtier.MidTierFlushHandler"/>
       <handler
@@ -64,7 +66,7 @@
 
    <extension point="org.eclipse.core.expressions.propertyTesters">
       <propertyTester id="se.yrell.developertools.midTierFlushTester"
-                      namespace="se.yrell.developertools" properties="supportsCacheFlush"
+                      namespace="se.yrell.developertools" properties="supportsCacheFlush,supportsSelectedFlush,toolbarAvailable"
                       type="java.lang.Object"
                       class="se.yrell.developertools.midtier.MidTierFlushPropertyTester"/>
       <propertyTester
@@ -81,12 +83,41 @@
             <command commandId="se.yrell.developertools.commands.midTierFlush"
                      icon="icons/toilet_16.png" tooltip="Flush MidTier cache for current form / workflow" style="push">
                <visibleWhen checkEnabled="false">
-                  <with variable="activeEditor">
-                     <test property="se.yrell.developertools.supportsCacheFlush"/>
-                  </with>
+                  <or>
+                     <with variable="activeEditor">
+                        <test property="se.yrell.developertools.supportsCacheFlush"/>
+                     </with>
+                     <with variable="selection">
+                        <count value="1"/>
+                        <iterate ifEmpty="false" operator="and">
+                           <test property="se.yrell.developertools.supportsSelectedFlush"/>
+                        </iterate>
+                     </with>
+                     <with variable="activeWorkbenchWindow">
+                        <test property="se.yrell.developertools.toolbarAvailable"/>
+                     </with>
+                  </or>
                </visibleWhen>
             </command>
          </toolbar>
+      </menuContribution>
+      <menuContribution locationURI="popup:org.eclipse.ui.popup.any?after=additions">
+         <command commandId="se.yrell.developertools.commands.midTierFlushObject"
+                  icon="icons/toilet_16.png" label="Flush MidTier Object" style="push">
+            <visibleWhen checkEnabled="false">
+               <or>
+                  <with variable="selection">
+                     <count value="1"/>
+                     <iterate ifEmpty="false" operator="and">
+                        <test property="se.yrell.developertools.supportsSelectedFlush"/>
+                     </iterate>
+                  </with>
+                  <with variable="activePart">
+                     <test property="se.yrell.developertools.supportsCacheFlush"/>
+                  </with>
+               </or>
+            </visibleWhen>
+         </command>
       </menuContribution>
       <menuContribution locationURI="popup:org.eclipse.ui.popup.any?after=additions">
          <command
