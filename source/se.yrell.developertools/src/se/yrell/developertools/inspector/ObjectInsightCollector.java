@@ -47,7 +47,18 @@ final class ObjectInsightCollector {
     private static final int MAX_TEXT_LENGTH = 4000;
     private static final int MAX_COLLECTION_ITEMS = 300;
 
-    private static final Map<String, Map<Integer, String>> GROUP_CACHE = new HashMap<String, Map<Integer, String>>();
+    private static final long GROUP_CACHE_TTL_MS = 5L * 60 * 1000;
+    private static final Map<IStore, GroupCacheEntry> GROUP_CACHE =
+            Collections.synchronizedMap(new java.util.WeakHashMap<IStore, GroupCacheEntry>());
+
+    private static final class GroupCacheEntry {
+        final Map<Integer, String> groups;
+        final long loadedAt;
+        GroupCacheEntry(Map<Integer, String> groups, long loadedAt) {
+            this.groups = groups;
+            this.loadedAt = loadedAt;
+        }
+    }
 
     List<InsightRow> collect(Object selection) {
         Object target = unwrap(selection);
@@ -614,31 +625,32 @@ final class ObjectInsightCollector {
         if (store == null) {
             return Collections.emptyMap();
         }
-        String key = safeString(callFirst(store, "getName"));
-        if (key.length() == 0) {
-            key = String.valueOf(System.identityHashCode(store));
-        }
+        long now = System.currentTimeMillis();
+        GroupCacheEntry cached;
         synchronized (GROUP_CACHE) {
-            Map<Integer, String> cached = GROUP_CACHE.get(key);
-            if (cached != null) {
-                return cached;
-            }
-            Map<Integer, String> map = new HashMap<Integer, String>();
-            try {
-                List<GroupInfo> groups = store.getListGroup();
-                if (groups != null) {
-                    for (GroupInfo group : groups) {
-                        if (group != null) {
-                            map.put(Integer.valueOf(group.getId()), group.getName());
-                        }
-                    }
-                }
-            } catch (Throwable t) {
-                Log.warn("Object Insight could not load group names for store " + key + ": " + t.getMessage());
-            }
-            GROUP_CACHE.put(key, map);
-            return map;
+            cached = GROUP_CACHE.get(store);
         }
+        if (cached != null && now - cached.loadedAt < GROUP_CACHE_TTL_MS) {
+            return cached.groups;
+        }
+        Map<Integer, String> map = new HashMap<Integer, String>();
+        try {
+            List<GroupInfo> groups = store.getListGroup();
+            if (groups != null) {
+                for (GroupInfo group : groups) {
+                    if (group != null) map.put(Integer.valueOf(group.getId()), group.getName());
+                }
+            }
+        } catch (Throwable t) {
+            Log.warn("Object Insight could not load group names: " + t.getMessage());
+            // Failed lookup must not erase a previous successful cache entry.
+            return cached == null ? Collections.emptyMap() : cached.groups;
+        }
+        Map<Integer, String> result = Collections.unmodifiableMap(map);
+        synchronized (GROUP_CACHE) {
+            GROUP_CACHE.put(store, new GroupCacheEntry(result, now));
+        }
+        return result;
     }
 
     private String permissionText(int permission) {

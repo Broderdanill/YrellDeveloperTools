@@ -1,103 +1,73 @@
-# Yrell Developer Tools 0.1.48
+# Yrell Developer Tools 0.1.50 – Developer Studio 26.1.1
 
-Developer Studio helper plugin for BMC Helix/AR System Developer Studio.
+Complete source, compiled Eclipse/OSGi plugin and Java agent. This release preserves all functions from 0.1.49 and adds **MidTier Cache Flush**.
 
-## Install
+## Contents
 
-1. Close Developer Studio.
-2. Remove older `se.yrell.developertools_*.jar` from `x64/plugins`.
-3. Copy `install/se.yrell.developertools_0.1.48.jar` to `x64/plugins`.
-4. If Fast object lists is used as Java agent, update `DeveloperStudio.ini` to point at `se.yrell.developertools_0.1.48.jar`.
-5. Start Developer Studio with `-clean -consoleLog`.
+- `install/se.yrell.developertools_0.1.50.jar` – installable Eclipse plugin, also used as `-javaagent` for Fast object lists.
+- `source/se.yrell.developertools/src/` – full Java source (51 files).
+- `source/se.yrell.developertools/plugin.xml`, `META-INF/MANIFEST.MF`, `icons/` – plugin descriptors and toilet toolbar icon.
+- `scripts/build.sh` – build with JDK 17+ against the **provided** Developer Studio 26.1.1 build001 libraries.
+- `scripts/test.sh`, `scripts/test-midtier-js.js`, `tests/` – regression tests. Node is optional for browser-script tests.
+- `CHANGELOG.md` and `TEST-RESULTS.txt` – changes, security boundaries and test scope.
 
-Fast object lists still requires the same jar to be loaded with `-javaagent` in `DeveloperStudio.ini` if you want the initial server-side object-list request to be filtered before BMC classes load.
+## Build on Ubuntu
 
-## Features
+Requires JDK 17 or newer, `unzip`, and `zip` (`javac`, `jar` part of JDK).
 
-All features are disabled by default and must be enabled in:
+```bash
+unzip YrellDeveloperTools-0.1.50-FullSource.zip
+cd YrellDeveloperTools-0.1.50
+./scripts/build.sh /absolute/path/componentDeveloperStudioWindows.zip
+./scripts/test.sh /absolute/path/componentDeveloperStudioWindows.zip
+```
 
-`Window -> Preferences -> Yrell Developer Tools`
+Alternatively, build against an extracted Developer Studio installation (the folder containing `x64/plugins`):
 
-### Custom suffix cleanup
+```bash
+./scripts/build.sh /absolute/path/DeveloperStudio/x64
+./scripts/test.sh /absolute/path/DeveloperStudio/x64
+```
 
-Removes BMC's automatic `__c` suffix while new objects/fields are created. It does not run post-save cleanup and does not rename existing saved objects.
+Output: `install/se.yrell.developertools_0.1.50.jar`. The build extracts BMC JARs to `.build/devstudio/x64/plugins` when given the ZIP. **BMC JARs are not included in the released plugin or source archive.**
 
-0.1.40 also cleans `__c` if Developer Studio updates the database name from a changed label on a new unsaved field.
+## Install in Developer Studio on Windows
 
-### Default naming
+1. Close Developer Studio and back up `x64/devstudio.ini` and the previous plugin JAR.
+2. Remove the older `se.yrell.developertools_*.jar` files from `x64/plugins` (keep backup outside plugins).
+3. Copy `install/se.yrell.developertools_0.1.50.jar` to `x64/plugins`.
+4. If you use Fast object lists via Java agent, change its existing path **after** the `-vmargs` line in `x64/devstudio.ini` to the new JAR. Do not remove unrelated JVM arguments or add a duplicate `-vmargs` line.
+5. Start Developer Studio with `-clean -consoleLog` once; verify **Window > Preferences > Yrell Developer Tools**.
 
-Can automatically set database names for table columns using a configurable pattern.
+Example **single added JVM argument** (adjust your installation directory):
 
-### Automatic field IDs
+```ini
+-javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.50.jar
+```
 
-Can assign custom field IDs using the format `<Developer ID><YY><MM><DD><NN>`.
+## MidTier Cache Flush – setup
 
-### PWA icon helper
+1. Open **Window > Preferences > Yrell Developer Tools**.
+2. Select **MidTier Cache Flush** from the feature table. Click **Add server...** for each AR server you use.
+3. Select the name from the connected AR Server list (or type an exact server name), then enter its MidTier context URL, for example `http://ars.sandbox:8080/arsys` or `https://midtier.example.com/arsys`.
+4. Check the feature's **Enabled** box and select **Apply / OK**. No restart is required for the mapping; reopening the editor may be needed to refresh toolbar visibility.
+5. Open a form or workflow editor. Use the **toilet icon** in the main Eclipse toolbar.
+6. In the dialog choose one operation: **Flush selected form**, **Flush complete MidTier cache**, or **Flush complete cache on all pods**. With a workflow referring to multiple forms, use the form dropdown to choose the right one.
+7. Sign in to the embedded **MidTier Configuration Tool** browser if needed. After login, click **Reload cache page** to load the page required for the selected operation, then click **Execute flush** and confirm. Inspect the server's returned page for the outcome.
 
-Adds the Icon picker button next to Icon properties and can preload the CSS-based PWA icon catalog.
+The server name in Developer Studio must correspond to the **Server List** value offered by MidTier. If they differ, configure a mapping for the correct AR server identity or adjust the MidTier configuration; the plugin refuses to guess a server on a form flush.
 
-### Fast object lists
+### Implementation and security behavior
 
-Filters list loading by Customization Type values such as `2,4` for Overlay and Custom.
+- The plugin reuses the current BMC `GoatConfigServlet?action=Cache` HTML form **inside an authenticated SWT Browser** and the page's fresh `cfgStok` security token. It does not invent an undocumented REST API or reuse an expired token from this release's HTML examples.
+- A Developer Studio AR session is **not automatically** a MidTier Configuration Tool session. MidTier may require separate authentication; **no password or configuration token is stored in plugin preferences**. Web browser session cookies are controlled by the Windows SWT Browser engine.
+- On a per-form flush, the request is the equivalent of `form_flush=Yes`, `server=<server>`, `form_name=<form>` to `/arsys/servlet/GoatConfigServlet?action=Cache&op_type=form_cleanup`. A complete flush uses `cache_flush=Yes`; all pods uses `cache_flush_allpods=Yes` on the other Configuration Tool page. The configured URL may use a custom context path instead of `/arsys`.
+- A confirmation is required for each submitted action. Requests are blocked when the loaded configuration page's origin, servlet action or security token does not match expectations. Full-cache flushes can affect every AR server/tenant on the MidTier and trigger repopulation; test carefully.
+- A flush response is shown in the embedded browser. A successful **request submission is not proof** that cache eviction completed or propagated to every pod.
+- Load balancers may route requests to different MidTier instances. Configure a specific MidTier instance if you intend to target one; use the **All pods** button only when the cluster's own functionality is configured appropriately. BMC documentation recommends a direct instance address for the Configuration Tool.
+- HTTP is allowed for lab setups but transmits credentials without transport encryption. Use HTTPS for non-isolated deployments.
+- The toolbar command is available for the BMC form and workflow editor types in Developer Studio **26.1.1**. If a workflow has no resolvable associated form, the plugin does not attempt a flush.
 
-Important: true initial server-side filtering requires the jar as Java agent. Without `-javaagent`, Developer Studio may load all objects first and filter afterwards.
+## Scope of validation
 
-0.1.41 fixes the Java agent default so it follows the plugin principle: Fast object lists is disabled unless `bmc.ds.fastForms.enabled=true` is configured or the saved agent properties file enables it.
-
-### Keepalive
-
-Can periodically call `verifyUser()` on connected AR Server sessions. It does not load forms or object lists.
-
-### Object Insight
-
-Optional view that follows the selected Developer Studio object.
-
-Current display:
-
-- Field permissions as one row per group, with group name, group ID and permission value.
-- Table field permissions also when the table is selected from the form canvas/outline editpart.
-- Table server/form as separate rows for selected table fields.
-- Table qualification for selected table fields.
-- Table sort columns for selected table fields, ordered by sort sequence and split into readable rows instead of one long raw property string.
-
-The view keeps the last real Developer Studio selection as its own selection provider so the normal Properties view should not clear just because Object Insight receives focus.
-
-### Object list search helper
-
-Keeps the text in the built-in object-list search field when `Display items where` is changed, so the same search is applied against the new column instead of being cleared.
-
-When the search field is created while this module is enabled, it is created with SWT search/cancel style so the native `X` icon clears the field and keeps focus in it.
-
-### Workflow field-map layout
-
-Stretches the Value column in workflow field-map widgets such as Set Fields and Push Fields, using the otherwise empty area to the right for long expressions/values.
-
-### Remove from view
-
-Optional right-click command: `Remove from view`.
-
-The command is visible only when:
-
-- the feature is enabled in settings,
-- the selection is a form-editor UI field,
-- the field exists in at least one other view.
-
-It removes only the current view instance. The AR field remains on the form and remains in the other views.
-
-0.1.40 uses BMC's own `RemoveFieldFromViewCommand` path when available so the current form view refreshes visually immediately and participates in the editor command stack.
-
-## 0.1.48 changes
-
-- Fast object lists now respects the visible **Base** checkbox. Default remains Overlay + Custom only, but if Base is ticked in Developer Studio Filter options the server-side filter includes Base as well.
-- The Java agent settings file now writes `bmc.ds.fastForms.allowManualBase=true` so manual Base selection is honored.
-
-
-- Disabled the delayed ObjectListView `triggerFilters()` UI fallback by default. The server-side Fast object list filter should now do the filtering without a second full TableViewer re-input pass on the SWT UI thread.
-- Agent settings written from the preference page now persist `bmc.ds.fastForms.triggerUiFilter=false`.
-- A legacy fallback can still be forced explicitly with `-Dbmc.ds.fastForms.triggerUiFilter=true`, but it is no longer read from the saved agent properties file.
-
-## Build notes
-
-- Bundle version: `0.1.48`
-- Java bytecode: 17 / major version 61
-- Same jar can be used both as Eclipse plugin and Fast object lists Java agent.
+Java 17 compile, 0.1.49 regression suite, bytecode transforms, Java agent bootstrap, MidTier URL/mapping tests, and browser JavaScript DOM simulations passed against the supplied libraries. Actual Windows SWT Browser login, command-toolbar visibility and live MidTier servlet responses require a connected test installation. See `TEST-RESULTS.txt`.

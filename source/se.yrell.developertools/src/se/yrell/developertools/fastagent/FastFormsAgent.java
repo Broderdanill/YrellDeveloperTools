@@ -38,13 +38,23 @@ public final class FastFormsAgent {
     private static final java.util.List<JarFile> BOOTSTRAP_JARS = new java.util.ArrayList<JarFile>();
 
     public static void premain(String args, Instrumentation inst) {
-        System.setProperty("se.yrell.developertools.fastFormsAgent.active", "true");
-        appendBridgeOnlyToBootstrap(inst);
+        // Do not enable the Java-agent pathway until the bootstrap bridge is installed.
+        // A transformer referencing an unavailable bridge can prevent BMC classes loading.
+        if (!appendBridgeOnlyToBootstrap(inst)) {
+            System.err.println("[Yrell Developer Tools FastForms Agent] bootstrap bridge unavailable; agent disabled, BMC code left unchanged.");
+            return;
+        }
         FastFormsBridge.logAlways("loaded v10; enabled=" + FastFormsBridge.isEnabledForAgent() +
             ", values=" + FastFormsBridge.valuesForAgent() +
             ", logFile=" + FastFormsBridge.logFilePathForAgent() +
             ", bootstrapBridge=bridge-only");
-        inst.addTransformer(new Transformer(), false);
+        try {
+            inst.addTransformer(new Transformer(), false);
+            // OSGi weaving reads this marker to avoid instrumenting the same BMC classes.
+            System.setProperty("se.yrell.developertools.fastFormsAgent.active", "true");
+        } catch (Throwable t) {
+            System.err.println("[Yrell Developer Tools FastForms Agent] could not install transformer: " + t);
+        }
     }
 
     public static void agentmain(String args, Instrumentation inst) {
@@ -60,7 +70,7 @@ public final class FastFormsAgent {
      * IllegalAccessError when ClassWriter tried to access SymbolTable. v8 appends a tiny
      * temporary jar containing only FastFormsBridge.class; ASM stays with the agent.
      */
-    private static void appendBridgeOnlyToBootstrap(Instrumentation inst) {
+    private static boolean appendBridgeOnlyToBootstrap(Instrumentation inst) {
         JarFile jf = null;
         try {
             java.io.InputStream in = FastFormsAgent.class.getResourceAsStream("/se/yrell/developertools/fastagent/FastFormsBridge.class");
@@ -85,10 +95,12 @@ public final class FastFormsAgent {
             jf = new JarFile(bootJar);
             inst.appendToBootstrapClassLoaderSearch(jf);
             BOOTSTRAP_JARS.add(jf); // Keep JarFile alive for the duration of the process.
+            return true;
         } catch (Throwable t) {
             // Do not use FastFormsBridge here; if bootstrap append failed it may not be visible to BMC classes.
             System.err.println("[Yrell Developer Tools FastForms Agent] could not append bridge-only jar to bootstrap class loader: " + t);
             try { if (jf != null) jf.close(); } catch (Throwable ignored) {}
+            return false;
         }
     }
 

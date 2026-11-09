@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Usage: ./scripts/test.sh /path/to/DeveloperStudio/x64
+# Test also accepts the original Studio ZIP if build.sh has extracted its libraries.
+set -o pipefail
+set -u
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+STUDIO="${1:-$ROOT/.build/devstudio/x64/plugins}"
+if [[ -f "$STUDIO" ]]; then
+  "$ROOT/scripts/build.sh" "$STUDIO" || exit $?
+  STUDIO="$ROOT/.build/devstudio/x64/plugins"
+elif [[ -d "$STUDIO/x64/plugins" ]]; then
+  STUDIO="$STUDIO/x64/plugins"
+elif [[ -d "$STUDIO/plugins" ]]; then
+  STUDIO="$STUDIO/plugins"
+fi
+JAR="$ROOT/install/se.yrell.developertools_0.1.50.jar"
+if [[ ! -f "$JAR" ]]; then echo "Build JAR first: $JAR" >&2; exit 2; fi
+mkdir -p "$ROOT/.build/tests"
+CLASSPATH=$(find "$STUDIO" -type f -name '*.jar' | sort | paste -sd: -)
+CP="$JAR:$ROOT/.build/tests:$CLASSPATH"
+if ! javac -proc:none --release 17 -encoding UTF-8 -cp "$CP" -d "$ROOT/.build/tests" "$ROOT/tests/"*.java; then exit 1; fi
+for test in DefaultNamingRegressionTest FastFormsStateRegressionTest TransformAudit MidTierCacheRegressionTest; do
+  echo "== $test =="
+  if [[ "$test" == "MidTierCacheRegressionTest" ]]; then
+    java -cp "$CP" "$test" > "$ROOT/.build/midtier-tests.txt" || { cat "$ROOT/.build/midtier-tests.txt"; exit 1; }
+    head -1 "$ROOT/.build/midtier-tests.txt"
+    if command -v node >/dev/null 2>&1; then
+      node "$ROOT/scripts/test-midtier-js.js" "$ROOT/.build/midtier-tests.txt" || exit 1
+    else
+      echo 'Skipping optional MidTier browser-JavaScript tests (Node.js not installed).'
+    fi
+  else
+    java -cp "$CP" "$test" || exit 1
+  fi
+done
+# Check a real JVM starts with this JAR configured as -javaagent, not only
+# that the Agent-Class metadata happens to exist.
+echo '== agent bootstrap =='
+java -javaagent:"$JAR" -Dbmc.ds.fastForms.enabled=false -cp "$CP" FastFormsStateRegressionTest || exit 1
+if ! javap -classpath "$JAR" -verbose se.yrell.developertools.ToolsActivator | grep -q 'major version: 61'; then
+  echo 'Wrong Java bytecode version (expected Java 17 / major 61).' >&2
+  exit 1
+fi
+echo 'ALL TESTS PASSED'

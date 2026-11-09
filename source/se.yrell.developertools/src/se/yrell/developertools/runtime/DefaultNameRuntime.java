@@ -7,6 +7,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import com.bmc.arsys.api.ColumnFieldLimit;
+import com.bmc.arsys.api.DataType;
 import com.bmc.arsys.api.FieldLimit;
 import com.bmc.arsys.api.TableFieldLimit;
 import com.bmc.arsys.studio.model.internal.helper.FieldHelper;
@@ -21,7 +22,10 @@ import se.yrell.developertools.ToolsPreferences;
  */
 public final class DefaultNameRuntime {
     private static final int MAX_COLUMN_NAME_LENGTH = 254;
-    private static final int DATA_TYPE_COLUMN = 32;
+    // Resolve BMC AR data types from the API rather than duplicating numeric constants.
+    // In Developer Studio 26.1.1, 32 is CONTROL (buttons), not COLUMN (34).
+    private static final int DATA_TYPE_COLUMN = DataType.COLUMN.toInt();
+    private static final int DATA_TYPE_TABLE = DataType.TABLE.toInt();
 
     private DefaultNameRuntime() {
     }
@@ -30,7 +34,7 @@ public final class DefaultNameRuntime {
         if (form == null || field == null) {
             return;
         }
-        applyTableColumnDatabaseName(form, field, fieldClass, "createNewARField", null, null);
+        applyTableColumnDatabaseName(form, field, "createNewARField", null, null);
     }
 
     /**
@@ -47,6 +51,11 @@ public final class DefaultNameRuntime {
                 return;
             }
             IFieldObject field = (IFieldObject) fieldObject;
+            // AddFieldToViewCommand also handles buttons and many other non-column UI fields.
+            // Reject them before attempting to resolve the form or change any metadata.
+            if (field.getDataType() != DATA_TYPE_COLUMN) {
+                return;
+            }
             IFormObject form = null;
             Object formView = invokeNoArg(uiField, "getFormView");
             if (formView != null) {
@@ -74,7 +83,7 @@ public final class DefaultNameRuntime {
                 Log.warn("Default naming could not resolve parent form from UI field " + uiField.getClass().getName() + ".");
                 return;
             }
-            applyTableColumnDatabaseName(form, field, uiField.getClass(), "addUIField", uiField, null);
+            applyTableColumnDatabaseName(form, field, "addUIField", uiField, null);
         } catch (Throwable t) {
             Log.warn("Could not apply UI field default naming: " + t.getMessage());
         }
@@ -116,20 +125,20 @@ public final class DefaultNameRuntime {
                 Log.warn("Default naming could not resolve parent form for table column added through UITableField.addColumn.");
                 return;
             }
-            applyTableColumnDatabaseName(form, columnField, columnUiField.getClass(), "tableAddColumn", columnUiField, tableField);
+            applyTableColumnDatabaseName(form, columnField, "tableAddColumn", columnUiField, tableField);
         } catch (Throwable t) {
             Log.warn("Could not apply table-column default naming from UITableField.addColumn: " + t.getMessage());
         }
     }
 
-    private static void applyTableColumnDatabaseName(IFormObject form, IFieldObject field, Class<?> sourceClass, String source, Object uiField, IFieldObject parentTableOverride) {
+    private static void applyTableColumnDatabaseName(IFormObject form, IFieldObject field, String source, Object uiField, IFieldObject parentTableOverride) {
         if (form == null || field == null) {
             return;
         }
         if (!ToolsPreferences.isTableColumnDbNameEnabled()) {
             return;
         }
-        if (!isTableColumn(field, sourceClass)) {
+        if (!isVerifiedTableColumn(form, field, parentTableOverride)) {
             return;
         }
         try {
@@ -142,6 +151,9 @@ public final class DefaultNameRuntime {
             ColumnContext ctx = readColumnContext(form, field, uiField, parentTableOverride);
             String pattern = ToolsPreferences.getTableColumnDbNamePattern();
             String dbName = renderPattern(pattern, ctx);
+            // Form-level uniqueness is checked before writing: two different
+            // column labels can normalize to the same AR database name.
+            dbName = uniqueColumnName(form, field, dbName);
             if (dbName.length() == 0) {
                 return;
             }
@@ -157,16 +169,68 @@ public final class DefaultNameRuntime {
         }
     }
 
-    private static boolean isTableColumn(IFieldObject field, Class<?> sourceClass) {
-        try {
-            if (field.getDataType() == DATA_TYPE_COLUMN) {
-                return true;
-            }
-        } catch (Throwable ignored) {
-            // Continue with class-name checks.
+    /**
+     * Only an AR COLUMN with a ColumnFieldLimit whose parent resolves to a real
+     * TABLE field is eligible. UI class names are not a reliable discriminator;
+     * this method deliberately fails closed if the relationship is incomplete.
+     *
+     * Newly created columns may not have their parent assigned during
+     * UIFieldFactory.createNewARField. The UITableField.addColumn hook runs after
+     * BMC sets ColumnFieldLimit.parent and provides the parent table directly.
+     */
+    private static String uniqueColumnName(IFormObject form, IFieldObject edited, String proposed) {
+        if (proposed == null || proposed.isEmpty()) return "";
+        String base = proposed;
+        for (int index = 1; index <= 99; index++) {
+            String suffix = index == 1 ? "" : "_" + index;
+            String candidate = base.substring(0, Math.min(base.length(), MAX_COLUMN_NAME_LENGTH - suffix.length())) + suffix;
+            if (!hasColumnNameCollision(form, edited, candidate)) return candidate;
         }
-        String name = sourceClass == null ? "" : sourceClass.getSimpleName();
-        return "UIColumnField".equals(name) || "UIPageDataField".equals(name) || name.toLowerCase(Locale.ROOT).contains("column");
+        Log.warn("Default naming: cannot generate a unique column name for '" + proposed + "'.");
+        return "";
+    }
+
+    private static boolean hasColumnNameCollision(IFormObject form, IFieldObject edited, String candidate) {
+        try {
+            java.util.Collection<IFieldObject> fields = form.getFields();
+            if (fields == null) return false;
+            for (IFieldObject other : fields) {
+                if (other == null || other == edited || other.getFieldID() == edited.getFieldID()) continue;
+                String otherName = safeTrim(FieldHelper.getFieldName(other));
+                if (candidate.equalsIgnoreCase(otherName)) return true;
+            }
+        } catch (Throwable t) {
+            // Unknown form state: do not risk changing the field to a nonunique name.
+            Log.warn("Default naming: field-name uniqueness check failed: " + t.getMessage());
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean isVerifiedTableColumn(IFormObject form, IFieldObject field, IFieldObject parentTableOverride) {
+        try {
+            if (form == null || field == null || field.getDataType() != DATA_TYPE_COLUMN) {
+                return false;
+            }
+            FieldLimit limit = field.getFieldLimit();
+            if (!(limit instanceof ColumnFieldLimit)) {
+                return false;
+            }
+            int parentId = ((ColumnFieldLimit) limit).getParent();
+            if (parentId <= 0 || parentId == field.getFieldID()) {
+                return false;
+            }
+            IFieldObject parent = parentTableOverride;
+            if (parent == null) {
+                parent = safeGetField(form, parentId);
+            } else if (parent.getFieldID() != parentId) {
+                return false;
+            }
+            return parent != null && parent.getDataType() == DATA_TYPE_TABLE
+                    && parent.getFieldLimit() instanceof TableFieldLimit;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     private static boolean shouldSetColumnDatabaseName(IFieldObject field, String current) {

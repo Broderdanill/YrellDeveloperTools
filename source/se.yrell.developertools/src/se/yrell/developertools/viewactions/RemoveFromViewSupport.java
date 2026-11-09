@@ -64,20 +64,10 @@ public final class RemoveFromViewSupport {
                 return true;
             }
 
-            // Fallback for Developer Studio variants where the GEF command path is not available.
-            Integer vui = Integer.valueOf(currentView.getVui());
-            details.addedViews.clear();
-            details.removedViews.clear();
-            details.removedViews.add(vui);
-            field.setViews(details);
-            currentView.removeUIField(fieldId);
-            safeCall(field, "setDirty", Boolean.TRUE);
-            safeCall(field, "validate");
-            safeCall(currentView, "reorderChildren");
-            safeCall(currentView, "validate");
-            refreshCurrentView(currentView, fieldId);
-            Log.info("Removed selected field " + fieldId + " from current view VUI " + vui + " using fallback update.");
-            return true;
+            // Do not mutate view metadata directly: this would clear unrelated pending
+            // addedViews/removedViews and bypass the GEF undo stack.
+            Log.warn("Remove from view: no undoable BMC command stack is available; no changes made.");
+            return false;
         } catch (Throwable t) {
             Log.error("Could not remove selected field from current view", t);
             return false;
@@ -92,15 +82,14 @@ public final class RemoveFromViewSupport {
                 return false;
             }
             GraphicalViewer viewer = currentView.getGraphicalViewer();
-            if (viewer != null && viewer.getEditDomain() != null && viewer.getEditDomain().getCommandStack() != null) {
-                CommandStack stack = viewer.getEditDomain().getCommandStack();
-                stack.execute(command);
-            } else {
-                command.execute();
+            if (viewer == null || viewer.getEditDomain() == null || viewer.getEditDomain().getCommandStack() == null) {
+                return false;
             }
+            CommandStack stack = viewer.getEditDomain().getCommandStack();
+            stack.execute(command);
             return true;
         } catch (Throwable t) {
-            Log.warn("BMC RemoveFieldFromViewCommand path failed, using fallback: " + t.getMessage());
+            Log.warn("BMC RemoveFieldFromViewCommand path failed (no fallback mutation): " + t.getMessage());
             return false;
         }
     }

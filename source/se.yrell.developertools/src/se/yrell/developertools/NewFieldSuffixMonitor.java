@@ -59,8 +59,6 @@ public final class NewFieldSuffixMonitor {
         display.addFilter(SWT.Selection, listener);
         display.addFilter(SWT.MouseUp, listener);
         display.addFilter(SWT.FocusIn, listener);
-        display.addFilter(SWT.Modify, listener);
-        display.addFilter(SWT.Paint, listener);
         display.addFilter(SWT.Activate, listener);
         display.addFilter(SWT.Show, listener);
         schedulePeriodicScan();
@@ -72,20 +70,20 @@ public final class NewFieldSuffixMonitor {
         if (display == null || display.isDisposed()) {
             return;
         }
-        display.timerExec(1200, new Runnable() {
+        display.timerExec(5000, new Runnable() {
             @Override
             public void run() {
                 if (display == null || display.isDisposed()) {
                     return;
                 }
-                scheduleScan();
+                if (ToolsPreferences.isRemoveCustomSuffixEnabled()) scheduleScan();
                 schedulePeriodicScan();
             }
         });
     }
 
     private static void scheduleScan() {
-        if (display == null || display.isDisposed() || scanScheduled) {
+        if (display == null || display.isDisposed() || scanScheduled || !ToolsPreferences.isRemoveCustomSuffixEnabled()) {
             return;
         }
         scanScheduled = true;

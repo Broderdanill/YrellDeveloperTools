@@ -117,7 +117,12 @@ public final class AutoFieldIdAllocator {
             Set<Integer> used = new HashSet<Integer>();
             used.addAll(currentFormUsed);
             used.addAll(fetchSessionAssignedIdsForDay(form, developerId, day));
-            used.addAll(fetchMetadataUsedIdsForDay(form, developerId, day));
+            Set<Integer> metadataIds = fetchMetadataUsedIdsForDay(form, developerId, day);
+            if (metadataIds == null) {
+                // Metadata cannot be verified: use Developer Studio's native ID allocation.
+                return -1;
+            }
+            used.addAll(metadataIds);
 
             for (int sequence = FIRST_SEQUENCE; sequence <= LAST_SEQUENCE; sequence++) {
                 long candidateLong = buildId(developerId, day, sequence);
@@ -145,8 +150,8 @@ public final class AutoFieldIdAllocator {
             ARServerUser context = getContext(form);
             IStore store = safeStore(form);
             if (context == null && !(store instanceof IEntryStore)) {
-                Log.warn("Could not read ARServerUser or IEntryStore context; Auto Field ID will only check current form and session-assigned ids this time.");
-                return used;
+                Log.warn("Auto Field ID: metadata unavailable, refusing unverified generated ID.");
+                return null;
             }
 
             long first = buildId(developerId, day, FIRST_SEQUENCE);
@@ -186,12 +191,12 @@ public final class AutoFieldIdAllocator {
             }
 
             if (lastFailure != null) {
-                Log.warn("Could not scan AR metadata form for Auto Field ID. Tried '" + METADATA_FIELD_FORM + "' and '" + METADATA_FIELD_FORM_LEGACY + "'. Current-form and session-assigned checks will still be used. Cause: " + lastFailure.getMessage());
+                Log.warn("Auto Field ID: metadata scan failed on both forms; reverting to Developer Studio native ID. Cause: " + lastFailure.getMessage());
             }
         } catch (Throwable t) {
-            Log.warn("Could not scan AR metadata for Auto Field ID. Current-form and session-assigned checks will still be used. Cause: " + t.getMessage());
+            Log.warn("Auto Field ID: metadata scan failed; reverting to native ID. Cause: " + t.getMessage());
         }
-        return used;
+        return null;
     }
 
     private static void addFieldIdFromEntry(Set<Integer> used, Entry entry, int fieldIdField, int developerId, LocalDate day) {

@@ -42,6 +42,7 @@ public class IconPickerDialog extends TitleAreaDialog {
     private final String currentValue;
     private final boolean browserPreviewMode;
     private File lastBrowserHtmlFile;
+    private int previewRevision;
     private Button previousPageButton;
     private Button nextPageButton;
     private Label pageLabel;
@@ -293,15 +294,20 @@ public class IconPickerDialog extends TitleAreaDialog {
         }
         updatePageControls(allMatches.size());
         String html = buildHtml(page, allMatches.size());
+        // Browser.setText can update the embedded CSS/font preview without writing
+        // a temporary HTML file for each search keystroke. A file fallback is kept
+        // for SWT Browser engines that cannot accept a large inline document.
         try {
-            File file = File.createTempFile("yrell-pwa-icons-", ".html");
-            Files.write(file.toPath(), html.getBytes(StandardCharsets.UTF_8));
-            file.deleteOnExit();
-            lastBrowserHtmlFile = file;
-            browser.setUrl(file.toURI().toString());
+            if (!browser.setText(html)) {
+                if (lastBrowserHtmlFile == null) {
+                    lastBrowserHtmlFile = File.createTempFile("yrell-pwa-icons-", ".html");
+                    lastBrowserHtmlFile.deleteOnExit();
+                }
+                Files.write(lastBrowserHtmlFile.toPath(), html.getBytes(StandardCharsets.UTF_8));
+                browser.setUrl(lastBrowserHtmlFile.toURI().toString() + "?revision=" + (++previewRevision));
+            }
         } catch (Throwable t) {
-            Log.warn("Could not write PWA icon preview to a temporary HTML file. Falling back to Browser.setText: " + t.getMessage());
-            browser.setText(html);
+            Log.warn("Could not refresh PWA icon preview: " + t.getMessage());
         }
     }
 

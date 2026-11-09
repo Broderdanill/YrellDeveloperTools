@@ -160,6 +160,15 @@ public final class ToolsPreferences {
         }
     }
 
+    public static boolean isMidTierCacheEnabled() {
+        return node().getBoolean(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED);
+    }
+
+    public static java.util.List<se.yrell.developertools.midtier.MidTierConfiguration.Mapping> getMidTierServerMappings() {
+        return se.yrell.developertools.midtier.MidTierConfiguration.decode(
+                node().get(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, ""));
+    }
+
     public static boolean isKeepAliveEnabled() {
         return node().getBoolean(ToolsConstants.PREF_KEEPALIVE_ENABLED,
                 ToolsConstants.DEFAULT_KEEPALIVE_ENABLED);

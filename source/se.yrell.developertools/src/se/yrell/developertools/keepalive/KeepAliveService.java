@@ -9,6 +9,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +44,7 @@ public final class KeepAliveService {
     private final AtomicInteger tickNumber = new AtomicInteger(0);
 
     private volatile ScheduledExecutorService scheduler;
+    private volatile ExecutorService workers;
     private volatile PropertyChangeListener storeListener;
     private volatile int activeIntervalSeconds;
 
@@ -66,6 +71,14 @@ public final class KeepAliveService {
 
         installStoreListener();
         activeIntervalSeconds = ToolsPreferences.getKeepAliveIntervalSeconds();
+        workers = new ThreadPoolExecutor(3, 3, 0L, TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<Runnable>(16), new ThreadFactory() {
+                    @Override public Thread newThread(Runnable r) {
+                        Thread t = new Thread(r, "Yrell Developer Tools AR Keepalive Worker");
+                        t.setDaemon(true);
+                        return t;
+                    }
+                }, new ThreadPoolExecutor.AbortPolicy());
         scheduler = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
@@ -93,9 +106,13 @@ public final class KeepAliveService {
         if (s != null) {
             s.shutdownNow();
         }
+        ExecutorService executor = workers;
+        workers = null;
+        if (executor != null) executor.shutdownNow();
         uninstallStoreListener();
         tickRunning.set(false);
-        serverRunning.clear();
+        // Keep in-flight flags until their worker exits. verifyUser() may not
+        // honor interruption, and a restart must not overlap the same server call.
         Log.info("Keepalive stopped");
     }
 
@@ -193,6 +210,27 @@ public final class KeepAliveService {
             return;
         }
 
+        ExecutorService executor = workers;
+        if (executor == null || executor.isShutdown()) {
+            running.set(false);
+            return;
+        }
+        final AtomicBoolean active = running;
+        try {
+            executor.execute(() -> {
+                try {
+                    verifyOnce(store, key);
+                } finally {
+                    active.set(false);
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            running.set(false);
+            Log.warn("Keepalive worker queue full; skipped " + key);
+        }
+    }
+
+    private void verifyOnce(ARServerStore store, String key) {
         long startedAt = System.currentTimeMillis();
         try {
             ARServerUser ctx = store.getContext();
@@ -212,8 +250,6 @@ public final class KeepAliveService {
         } catch (Throwable t) {
             long elapsed = System.currentTimeMillis() - startedAt;
             Log.error(key + " keepalive failed after " + elapsed + " ms", t);
-        } finally {
-            running.set(false);
         }
     }
 

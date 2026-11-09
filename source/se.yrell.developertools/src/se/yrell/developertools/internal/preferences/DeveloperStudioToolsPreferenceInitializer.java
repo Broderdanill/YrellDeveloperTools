@@ -33,6 +33,9 @@ public class DeveloperStudioToolsPreferenceInitializer extends AbstractPreferenc
         store.setDefault(ToolsConstants.PREF_FAST_FORMS_VALUES, ToolsConstants.DEFAULT_FAST_FORMS_VALUES);
         store.setDefault(ToolsConstants.PREF_FAST_FORMS_DEBUG, ToolsConstants.DEFAULT_FAST_FORMS_DEBUG);
 
+        store.setDefault(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED);
+        store.setDefault(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, "");
+
         store.setDefault(ToolsConstants.PREF_KEEPALIVE_ENABLED, ToolsConstants.DEFAULT_KEEPALIVE_ENABLED);
         store.setDefault(ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS, ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS);
 

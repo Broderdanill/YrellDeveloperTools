@@ -1,0 +1,24 @@
+Yrell Developer Tools 0.1.50 - Build and test results
+2026-11-09
+
+Input: user-supplied BMC Developer Studio 26.1.1 build001 Windows distribution ZIP.
+Environment: Linux build host, Java 17 bytecode target (--release 17), Node.js 22.16 for optional simulated-browser tests.
+
+PASS: compilation of all 51 Java source files against original BMC Developer Studio ZIP.
+PASS: Eclipse/OSGi plugin and Java-agent JAR assembly.
+PASS: 14 Default naming assertions (only table columns).
+PASS: 6 Fast object lists state assertions.
+PASS: 8 static BMC UI transformer matches.
+PASS: 12 OSGi Fast object list transformer matches.
+PASS: 12 Java-agent Fast object list transformer matches.
+PASS: 28 MidTier config, URL, mapping, form operation, JS generation checks.
+PASS: 8 MidTier JavaScript browser DOM simulation cases including malformed action, wrong server, missing cfgStok.
+PASS: Java-agent JVM bootstrap smoke test.
+PASS: plugin.xml is well-formed XML; JAR contains toilet icon and all MidTier classes.
+PASS: uploaded MidTier HTML form names, input names and POST actions matched against implementation.
+
+NOT VERIFIED: Real BMC Windows Developer Studio GUI toolbar and SWT Browser login.
+NOT VERIFIED: Live MidTier session authentication, successful server-side cache purge or all-pods propagation.
+NOT VERIFIED: MidTier Configuration Tool response status interpretation (the dialog shows the response and only reports request submission).
+
+The archive must not include BMC proprietary runtime JAR dependencies or the uploaded live cfgStok token.

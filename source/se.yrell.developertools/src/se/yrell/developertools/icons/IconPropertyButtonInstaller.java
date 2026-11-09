@@ -99,15 +99,12 @@ public final class IconPropertyButtonInstaller {
         display.addFilter(SWT.FocusOut, listener);
         display.addFilter(SWT.MouseDown, listener);
         display.addFilter(SWT.MouseUp, listener);
-        display.addFilter(SWT.MouseMove, listener);
-        display.addFilter(SWT.Paint, listener);
         display.addFilter(SWT.Resize, listener);
         display.addFilter(SWT.Show, listener);
         display.addFilter(SWT.Activate, listener);
         display.addFilter(SWT.Deactivate, listener);
         display.addFilter(SWT.Expand, listener);
         display.addFilter(SWT.Collapse, listener);
-        display.addFilter(SWT.Modify, listener);
         schedulePeriodicScan();
     }
 
@@ -115,13 +112,13 @@ public final class IconPropertyButtonInstaller {
         if (display == null || display.isDisposed()) {
             return;
         }
-        display.timerExec(700, new Runnable() {
+        display.timerExec(2500, new Runnable() {
             @Override
             public void run() {
                 if (display == null || display.isDisposed()) {
                     return;
                 }
-                scheduleScan();
+                if (ToolsPreferences.isPwaIconHelperEnabled()) scheduleScan();
                 schedulePeriodicScan();
             }
         });

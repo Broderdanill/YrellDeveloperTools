@@ -3,6 +3,10 @@ package se.yrell.developertools;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CCombo;
 import org.eclipse.swt.widgets.Combo;
+import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
@@ -38,7 +42,8 @@ public final class SwtSuffixFilter {
             return;
         }
         Widget widget = event.widget;
-        if (widget == null || Boolean.TRUE.equals(widget.getData(DATA_KEY))) {
+        if (widget == null || Boolean.TRUE.equals(widget.getData(DATA_KEY))
+                || !(widget instanceof Control) || !isKnownCreationNameControl((Control) widget)) {
             return;
         }
         try {
@@ -56,6 +61,38 @@ public final class SwtSuffixFilter {
         } catch (Throwable t) {
             Log.error("SWT suffix filter failed", t);
         }
+    }
+
+    /**
+     * Strict UI fallback. We only touch an explicitly labelled name field inside a
+     * new/create dialog. Other editable fields, search boxes and property editors
+     * must never be silently rewritten even when their value happens to end __c.
+     * Model-level cleanup remains the primary mechanism.
+     */
+    private static boolean isKnownCreationNameControl(Control control) {
+        if (control.isDisposed()) return false;
+        Shell shell = control.getShell();
+        if (shell == null || shell.isDisposed()) return false;
+        String title = shell.getText().trim().toLowerCase(java.util.Locale.ROOT);
+        if (!(title.startsWith("new ") || title.startsWith("create ")
+                || title.startsWith("add ") || title.startsWith("ny ")
+                || title.startsWith("skapa "))) return false;
+        Composite parent = control.getParent();
+        if (parent == null || parent.isDisposed()) return false;
+        Control[] siblings = parent.getChildren();
+        for (int i = 0; i < siblings.length; i++) {
+            if (siblings[i] != control) continue;
+            // Only trust the label immediately before the field, never arbitrary
+            // labels elsewhere in the dialog.
+            if (i == 0 || !(siblings[i - 1] instanceof Label)) return false;
+            String label = ((Label) siblings[i - 1]).getText().trim()
+                    .toLowerCase(java.util.Locale.ROOT).replace(":", "").trim();
+            return label.equals("name") || label.equals("database name")
+                    || label.equals("field name") || label.equals("form name")
+                    || label.equals("view name") || label.equals("namn")
+                    || label.equals("databasnamn");
+        }
+        return false;
     }
 
     private static String strip(String value) {

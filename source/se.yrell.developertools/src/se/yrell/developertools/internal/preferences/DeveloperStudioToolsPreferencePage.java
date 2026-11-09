@@ -3,6 +3,8 @@ package se.yrell.developertools.internal.preferences;
 import java.io.File;
 import java.net.URI;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.eclipse.jface.dialogs.Dialog;
@@ -42,6 +44,8 @@ import se.yrell.developertools.ToolsConstants;
 import se.yrell.developertools.ToolsPreferences;
 import se.yrell.developertools.inspector.ObjectInsightViewSupport;
 import se.yrell.developertools.keepalive.KeepAliveService;
+import se.yrell.developertools.midtier.MidTierConfiguration;
+import se.yrell.developertools.midtier.MidTierMappingDialog;
 
 /**
  * Single-page settings UI with a compact feature table on the left and contextual
@@ -58,6 +62,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
     private static final String FEATURE_AUTO_IDS = "autoIds";
     private static final String FEATURE_PWA_ICONS = "pwaIcons";
     private static final String FEATURE_FAST_OBJECTS = "fastObjects";
+    private static final String FEATURE_MIDTIER_CACHE = "midTierCache";
     private static final String FEATURE_KEEPALIVE = "keepalive";
     private static final String FEATURE_INSIGHT = "insight";
     private static final String FEATURE_VIEW_ACTIONS = "viewActions";
@@ -81,6 +86,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
     private boolean fastObjectsEnabled;
     private String fastObjectValues;
     private boolean fastObjectDebug;
+    private boolean midTierCacheEnabled;
+    private final List<MidTierConfiguration.Mapping> midTierMappings = new ArrayList<>();
     private boolean keepAliveEnabled;
     private String keepAliveInterval;
     private boolean insightEnabled;
@@ -295,6 +302,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
                 }
             });
             addInfo(detailHost, "Values: 0=Base, 1=Overlaid, 2=Overlay, 4=Custom. Normal recommendation is 2,4. Change values, Apply, then restart Developer Studio with -clean.");
+        } else if (FEATURE_MIDTIER_CACHE.equals(featureId)) {
+            createMidTierSettings(detailHost);
         } else if (FEATURE_KEEPALIVE.equals(featureId)) {
             addTextSetting(detailHost, "Keepalive interval (seconds)", keepAliveInterval, new ValueSetter() {
                 public void set(String value) { keepAliveInterval = value; }
@@ -313,6 +322,77 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
 
         detailHost.layout(true, true);
         detailHost.getParent().layout(true, true);
+    }
+
+    private void createMidTierSettings(Composite parent) {
+        addInfo(parent, "Map each connected AR server to a specific MidTier URL. The toolbar button is available in form and workflow editors. For multi-form workflows you can select the associated form.");
+        addImportant(parent, "The MidTier Configuration Tool has its own authenticated browser session. You may need to log in. The plugin never saves passwords or the cfgStok security token. Full flushes can affect all AR servers and tenants on that MidTier.");
+        final Table mappingsTable = new Table(parent, SWT.BORDER | SWT.FULL_SELECTION | SWT.SINGLE);
+        mappingsTable.setHeaderVisible(true);
+        mappingsTable.setLinesVisible(true);
+        GridData tableData = new GridData(SWT.FILL, SWT.FILL, true, false);
+        tableData.heightHint = 145;
+        mappingsTable.setLayoutData(tableData);
+        TableColumn serverColumn = new TableColumn(mappingsTable, SWT.LEFT);
+        serverColumn.setText("AR Server");
+        serverColumn.setWidth(190);
+        TableColumn urlColumn = new TableColumn(mappingsTable, SWT.LEFT);
+        urlColumn.setText("MidTier URL");
+        urlColumn.setWidth(470);
+        for (MidTierConfiguration.Mapping m : midTierMappings) {
+            TableItem row = new TableItem(mappingsTable, SWT.NONE);
+            row.setText(new String[] {m.server(), m.baseUrl()});
+        }
+        Composite buttons = new Composite(parent, SWT.NONE);
+        buttons.setLayout(new GridLayout(3, false));
+        buttons.setLayoutData(new GridData(SWT.LEFT, SWT.TOP, false, false));
+        Button add = new Button(buttons, SWT.PUSH);
+        add.setText("Add server...");
+        add.addSelectionListener(new SelectionAdapter() {
+            @Override public void widgetSelected(SelectionEvent e) {
+                MidTierMappingDialog dialog = new MidTierMappingDialog(getShell(), null);
+                if (dialog.open() != org.eclipse.jface.window.Window.OK) return;
+                MidTierConfiguration.Mapping mapping = dialog.getResult();
+                if (MidTierConfiguration.lookup(midTierMappings, mapping.server()) != null) {
+                    MessageDialog.openError(getShell(), "MidTier Cache Flush", "AR server already configured: " + mapping.server());
+                    return;
+                }
+                midTierMappings.add(mapping);
+                TableItem row = new TableItem(mappingsTable, SWT.NONE);
+                row.setText(new String[] {mapping.server(), mapping.baseUrl()});
+                mappingsTable.setSelection(row);
+            }
+        });
+        Button edit = new Button(buttons, SWT.PUSH);
+        edit.setText("Edit...");
+        edit.addSelectionListener(new SelectionAdapter() {
+            @Override public void widgetSelected(SelectionEvent e) {
+                int index = mappingsTable.getSelectionIndex();
+                if (index < 0 || index >= midTierMappings.size()) return;
+                MidTierMappingDialog dialog = new MidTierMappingDialog(getShell(), midTierMappings.get(index));
+                if (dialog.open() != org.eclipse.jface.window.Window.OK) return;
+                MidTierConfiguration.Mapping mapping = dialog.getResult();
+                for (int i = 0; i < midTierMappings.size(); i++) {
+                    if (i != index && midTierMappings.get(i).server().equalsIgnoreCase(mapping.server())) {
+                        MessageDialog.openError(getShell(), "MidTier Cache Flush", "AR server already configured: " + mapping.server());
+                        return;
+                    }
+                }
+                midTierMappings.set(index, mapping);
+                mappingsTable.getItem(index).setText(new String[] {mapping.server(), mapping.baseUrl()});
+            }
+        });
+        Button remove = new Button(buttons, SWT.PUSH);
+        remove.setText("Remove");
+        remove.addSelectionListener(new SelectionAdapter() {
+            @Override public void widgetSelected(SelectionEvent e) {
+                int index = mappingsTable.getSelectionIndex();
+                if (index < 0 || index >= midTierMappings.size()) return;
+                midTierMappings.remove(index);
+                mappingsTable.remove(index);
+            }
+        });
+        addInfo(parent, "For example, map arserver to http://ars.sandbox:8080/arsys. Use the URL of a specific pod/instance if you need to target one. HTTP is supported for local labs; HTTPS is recommended elsewhere.");
     }
 
     private void addTextSetting(Composite parent, String labelText, String value, final ValueSetter setter) {
@@ -405,6 +485,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         fastObjectsEnabled = ToolsConstants.DEFAULT_FAST_FORMS_ENABLED;
         fastObjectValues = ToolsConstants.DEFAULT_FAST_FORMS_VALUES;
         fastObjectDebug = ToolsConstants.DEFAULT_FAST_FORMS_DEBUG;
+        midTierCacheEnabled = ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED;
+        midTierMappings.clear();
         keepAliveEnabled = ToolsConstants.DEFAULT_KEEPALIVE_ENABLED;
         keepAliveInterval = String.valueOf(ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS);
         insightEnabled = ToolsConstants.DEFAULT_OBJECT_INSIGHT_ENABLED;
@@ -417,6 +499,18 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
     }
 
     private boolean validateValues() {
+        try {
+            MidTierConfiguration.encode(midTierMappings);
+        } catch (IllegalArgumentException e) {
+            MessageDialog.openError(getShell(), "Yrell Developer Tools", "Invalid MidTier mapping: " + e.getMessage());
+            selectFeature(FEATURE_MIDTIER_CACHE);
+            return false;
+        }
+        if (midTierCacheEnabled && midTierMappings.isEmpty()) {
+            MessageDialog.openError(getShell(), "Yrell Developer Tools", "Configure at least one AR server / MidTier URL mapping before enabling MidTier Cache Flush.");
+            selectFeature(FEATURE_MIDTIER_CACHE);
+            return false;
+        }
         if (autoIdsEnabled && !isValidDeveloperId(developerId)) {
             MessageDialog.openError(getShell(), "Yrell Developer Tools",
                     "Developer ID must be set when Automatic Field IDs is enabled. It must be a number from 10 to 21.\n\n22 and above cannot be used because AR field IDs are signed integers and the generated 10-digit value would exceed the maximum allowed value.");
@@ -485,6 +579,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
             store.setValue(ToolsConstants.PREF_FAST_FORMS_ENABLED, fastObjectsEnabled);
             store.setValue(ToolsConstants.PREF_FAST_FORMS_VALUES, trimOrDefault(fastObjectValues, ToolsConstants.DEFAULT_FAST_FORMS_VALUES));
             store.setValue(ToolsConstants.PREF_FAST_FORMS_DEBUG, fastObjectDebug);
+            store.setValue(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, midTierCacheEnabled);
+            store.setValue(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, MidTierConfiguration.encode(midTierMappings));
             store.setValue(ToolsConstants.PREF_KEEPALIVE_ENABLED, keepAliveEnabled);
             store.setValue(ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS, parseIntOrDefault(keepAliveInterval, ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS));
             store.setValue(ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED, insightEnabled);
@@ -505,6 +601,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         node.putBoolean(ToolsConstants.PREF_FAST_FORMS_ENABLED, fastObjectsEnabled);
         node.put(ToolsConstants.PREF_FAST_FORMS_VALUES, trimOrDefault(fastObjectValues, ToolsConstants.DEFAULT_FAST_FORMS_VALUES));
         node.putBoolean(ToolsConstants.PREF_FAST_FORMS_DEBUG, fastObjectDebug);
+        node.putBoolean(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, midTierCacheEnabled);
+        node.put(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, MidTierConfiguration.encode(midTierMappings));
         node.putBoolean(ToolsConstants.PREF_KEEPALIVE_ENABLED, keepAliveEnabled);
         node.putInt(ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS, parseIntOrDefault(keepAliveInterval, ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS));
         node.putBoolean(ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED, insightEnabled);
@@ -544,6 +642,9 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         fastObjectsEnabled = getBoolean(store, ToolsConstants.PREF_FAST_FORMS_ENABLED, ToolsConstants.DEFAULT_FAST_FORMS_ENABLED);
         fastObjectValues = getString(store, ToolsConstants.PREF_FAST_FORMS_VALUES, ToolsConstants.DEFAULT_FAST_FORMS_VALUES);
         fastObjectDebug = getBoolean(store, ToolsConstants.PREF_FAST_FORMS_DEBUG, ToolsConstants.DEFAULT_FAST_FORMS_DEBUG);
+        midTierCacheEnabled = getBoolean(store, ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED);
+        midTierMappings.clear();
+        midTierMappings.addAll(MidTierConfiguration.decode(getString(store, ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, "")));
         keepAliveEnabled = getBoolean(store, ToolsConstants.PREF_KEEPALIVE_ENABLED, ToolsConstants.DEFAULT_KEEPALIVE_ENABLED);
         keepAliveInterval = String.valueOf(getInt(store, ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS, ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS));
         insightEnabled = getBoolean(store, ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED, ToolsConstants.DEFAULT_OBJECT_INSIGHT_ENABLED);
@@ -612,6 +713,9 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         features.put(FEATURE_FAST_OBJECTS, new Feature(FEATURE_FAST_OBJECTS, "Fast object lists",
                 "Filters large object lists to selected Customization Type values such as Overlay and Custom.",
                 "Requires -javaagent and a Developer Studio restart with -clean to affect the initial server request."));
+        features.put(FEATURE_MIDTIER_CACHE, new Feature(FEATURE_MIDTIER_CACHE, "MidTier Cache Flush",
+                "Flush MidTier cache for the current form or workflow, a complete instance, or all pods.",
+                "No restart required for settings. Reopen an editor if the toolbar visibility does not update immediately."));
         features.put(FEATURE_KEEPALIVE, new Feature(FEATURE_KEEPALIVE, "Keepalive",
                 "Keeps already connected AR Server sessions warm by periodically calling verifyUser().",
                 "No restart is required; Apply reconfigures the keepalive service."));
@@ -635,6 +739,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         if (FEATURE_AUTO_IDS.equals(id)) return autoIdsEnabled;
         if (FEATURE_PWA_ICONS.equals(id)) return pwaIconsEnabled;
         if (FEATURE_FAST_OBJECTS.equals(id)) return fastObjectsEnabled;
+        if (FEATURE_MIDTIER_CACHE.equals(id)) return midTierCacheEnabled;
         if (FEATURE_KEEPALIVE.equals(id)) return keepAliveEnabled;
         if (FEATURE_INSIGHT.equals(id)) return insightEnabled;
         if (FEATURE_VIEW_ACTIONS.equals(id)) return removeFromViewEnabled;
@@ -649,6 +754,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         else if (FEATURE_AUTO_IDS.equals(id)) autoIdsEnabled = enabled;
         else if (FEATURE_PWA_ICONS.equals(id)) pwaIconsEnabled = enabled;
         else if (FEATURE_FAST_OBJECTS.equals(id)) fastObjectsEnabled = enabled;
+        else if (FEATURE_MIDTIER_CACHE.equals(id)) midTierCacheEnabled = enabled;
         else if (FEATURE_KEEPALIVE.equals(id)) keepAliveEnabled = enabled;
         else if (FEATURE_INSIGHT.equals(id)) insightEnabled = enabled;
         else if (FEATURE_VIEW_ACTIONS.equals(id)) removeFromViewEnabled = enabled;
@@ -697,7 +803,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         } catch (Throwable ignored) {
             // Fall through to generic example.
         }
-        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.46.jar";
+        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.50.jar";
     }
 
     private boolean isValidDeveloperId(String developerIdText) {

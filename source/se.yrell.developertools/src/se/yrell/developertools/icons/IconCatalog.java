@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.ArrayList;
@@ -30,6 +31,10 @@ public final class IconCatalog {
             Pattern.DOTALL);
     private static final Pattern CSS_URL_PATTERN = Pattern.compile("url\\((['\\\"]?)([^)'\\\"]+)(['\\\"]?)\\)");
 
+    private static final int CONNECT_TIMEOUT_MS = 5000;
+    private static final int READ_TIMEOUT_MS = 10000;
+    private static final int MAX_CSS_BYTES = 4 * 1024 * 1024;
+    private static final int MAX_FONT_BYTES = 3 * 1024 * 1024;
     private static volatile List<IconEntry> cache;
     private static volatile String cacheKey;
     private static volatile String activeCssUrl;
@@ -143,8 +148,8 @@ public final class IconCatalog {
     private static CssCatalog readCssCatalog(String cssUrl) throws IOException {
         URL url = new URL(cssUrl);
         byte[] bytes;
-        try (InputStream in = url.openStream()) {
-            bytes = readAllBytes(in);
+        try (InputStream in = openBoundedConnection(url)) {
+            bytes = readAllBytes(in, MAX_CSS_BYTES);
         }
         String css = new String(bytes, StandardCharsets.UTF_8);
         String base = baseUrl(cssUrl);
@@ -192,8 +197,8 @@ public final class IconCatalog {
         if (!(lower.contains(".woff2") || lower.contains(".woff"))) {
             return "";
         }
-        try (InputStream in = new URL(absoluteUrl).openStream()) {
-            byte[] bytes = readAllBytes(in);
+        try (InputStream in = openBoundedConnection(new URL(absoluteUrl))) {
+            byte[] bytes = readAllBytes(in, MAX_FONT_BYTES);
             String mime = lower.contains(".woff2") ? "font/woff2" : "font/woff";
             String encoded = Base64.getEncoder().encodeToString(bytes);
             Log.info("Embedded PWA icon font for preview: " + absoluteUrl + " (" + bytes.length + " bytes).");
@@ -235,11 +240,26 @@ public final class IconCatalog {
         }
     }
 
-    private static byte[] readAllBytes(InputStream in) throws IOException {
+    private static InputStream openBoundedConnection(URL url) throws IOException {
+        String protocol = url.getProtocol();
+        if (!("http".equalsIgnoreCase(protocol) || "https".equalsIgnoreCase(protocol))) {
+            throw new IOException("Only HTTPS/HTTP icon CSS and font URLs are supported");
+        }
+        URLConnection connection = url.openConnection();
+        connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        connection.setReadTimeout(READ_TIMEOUT_MS);
+        connection.setUseCaches(true);
+        return connection.getInputStream();
+    }
+
+    private static byte[] readAllBytes(InputStream in, int maxBytes) throws IOException {
         java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
         byte[] buffer = new byte[8192];
         int read;
         while ((read = in.read(buffer)) != -1) {
+            if (out.size() + read > maxBytes) {
+                throw new IOException("PWA resource exceeds " + maxBytes + " byte safety limit");
+            }
             out.write(buffer, 0, read);
         }
         return out.toByteArray();

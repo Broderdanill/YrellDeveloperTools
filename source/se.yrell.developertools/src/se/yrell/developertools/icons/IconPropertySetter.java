@@ -34,6 +34,10 @@ public final class IconPropertySetter {
 
     public static boolean setIconValue(String value, Item item, Control valueControl) {
         boolean updatedModel = setViaCurrentSelection(value);
+        if (!updatedModel) {
+            Log.warn("PWA Icon selection was not written to the model; leaving the displayed property unchanged.");
+            return false;
+        }
         updateVisualValue(value, item);
         updateVisualValue(value, valueControl);
         copyToClipboard(value);

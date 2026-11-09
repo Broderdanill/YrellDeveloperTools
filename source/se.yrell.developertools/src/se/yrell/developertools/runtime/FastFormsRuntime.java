@@ -123,7 +123,7 @@ public final class FastFormsRuntime {
             else labels = new HashSet<String>(labels);
             if (((Boolean) selectedObj).booleanValue()) labels.add(label);
             else labels.remove(label);
-            lastCustomizationCheckboxLabels = labels;
+            lastCustomizationCheckboxLabels = java.util.Collections.unmodifiableSet(labels);
             debug("checkbox selection changed: " + label + "=" + selectedObj + ", customizationLabels=" + labels);
         } catch (Throwable t) {
             debug("could not sync checkbox selection event: " + t);
@@ -734,8 +734,9 @@ public final class FastFormsRuntime {
             for (Object o : input) {
                 if (o instanceof String && isCustomizationLabel((String)o)) labels.add((String)o);
             }
-            if (!labels.isEmpty()) {
-                lastCustomizationCheckboxLabels = labels;
+            if (!labels.isEmpty() || input.isEmpty()) {
+                // An empty list is an explicit user choice, not missing state.
+                lastCustomizationCheckboxLabels = java.util.Collections.unmodifiableSet(labels);
                 debug("remembered customization checkbox labels=" + labels);
             }
         } catch (Throwable t) {
@@ -757,11 +758,12 @@ public final class FastFormsRuntime {
     private static Set<Integer> allowedValuesFromCheckboxState() {
         Set<Integer> configured = allowedValues();
         Set<String> labels = lastCustomizationCheckboxLabels;
-        if (labels == null || labels.isEmpty()) return configured;
+        if (labels == null) return configured;
+        if (labels.isEmpty()) return java.util.Collections.emptySet();
 
         Set<Integer> selected = new HashSet<Integer>();
         for (String label : labels) addAllowedValueForLabel(selected, label);
-        if (selected.isEmpty()) return configured;
+        if (selected.isEmpty()) return java.util.Collections.emptySet();
 
         // Keep the preference value as the default/safety baseline, but let the visible
         // Developer Studio checkbox state add Base when the user explicitly ticks it.
@@ -771,7 +773,7 @@ public final class FastFormsRuntime {
             if (Integer.valueOf(0).equals(v) && allowManualBaseCheckbox()) out.add(v);
             else if (configured.contains(v)) out.add(v);
         }
-        if (out.isEmpty()) return configured;
+        // Never silently re-enable customization types the user unchecked.
         return out;
     }
 

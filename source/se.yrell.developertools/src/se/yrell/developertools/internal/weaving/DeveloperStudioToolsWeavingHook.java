@@ -2,7 +2,6 @@ package se.yrell.developertools.internal.weaving;
 
 import java.nio.charset.StandardCharsets;
 
-import org.osgi.framework.hooks.weaving.WeavingException;
 import org.osgi.framework.hooks.weaving.WeavingHook;
 import org.osgi.framework.hooks.weaving.WovenClass;
 
@@ -23,7 +22,7 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
     private static final String CAN_APPEND = "canAppendCustomString";
 
     @Override
-    public void weave(WovenClass wovenClass) throws WeavingException {
+    public void weave(WovenClass wovenClass) {
         String className = wovenClass.getClassName();
         if (className == null) {
             return;
@@ -46,7 +45,9 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
         boolean modified = false;
 
         String internalClassName = className.replace('.', '/');
-        if (ToolsPreferences.isFastFormsEnabled() && FastFormsTransformer.shouldTransform(internalClassName)) {
+        if (ToolsPreferences.isFastFormsEnabled()
+                && !Boolean.getBoolean("se.yrell.developertools.fastFormsAgent.active")
+                && FastFormsTransformer.shouldTransform(internalClassName)) {
             try {
                 byte[] transformed = FastFormsTransformer.transform(internalClassName, currentBytes);
                 if (transformed != null) {
@@ -56,7 +57,7 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
                 }
             } catch (Throwable t) {
                 Log.error("Failed to weave Fast Forms hook into " + className + ".", t);
-                throw new WeavingException("Failed to weave Fast Forms hook", t);
+                // Fail open: a helper must not abort BMC bundle class loading.
             }
         }
 
@@ -72,7 +73,7 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
                 }
             } catch (Throwable t) {
                 Log.error("Failed to weave UI field creation hook into " + FIELD_FACTORY_CLASS + ".", t);
-                throw new WeavingException("Failed to weave UI field creation hook", t);
+                // Fail open: a helper must not abort BMC bundle class loading.
             }
         }
 
@@ -88,7 +89,7 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
                 }
             } catch (Throwable t) {
                 Log.error("Failed to weave default naming hook into " + ADD_FIELD_TO_VIEW_COMMAND_CLASS + ".", t);
-                throw new WeavingException("Failed to weave default naming hook", t);
+                // Fail open: a helper must not abort BMC bundle class loading.
             }
         }
 
@@ -104,7 +105,7 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
                 }
             } catch (Throwable t) {
                 Log.error("Failed to weave table-column default naming hook into " + UI_TABLE_FIELD_CLASS + ".", t);
-                throw new WeavingException("Failed to weave table-column default naming hook", t);
+                // Fail open: a helper must not abort BMC bundle class loading.
             }
         }
 
@@ -121,7 +122,7 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
                 }
             } catch (Throwable t) {
                 Log.error("Failed to weave FormHelper generated-name cleanup hook into " + FORM_HELPER_CLASS + ".", t);
-                throw new WeavingException("Failed to weave FormHelper generated-name cleanup hook", t);
+                // Fail open: a helper must not abort BMC bundle class loading.
             }
         }
 
@@ -137,7 +138,7 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
                 }
             } catch (Throwable t) {
                 Log.error("Failed to weave PWA Icon property descriptor hook into " + UI_FIELD_CLASS + ".", t);
-                throw new WeavingException("Failed to weave PWA Icon property descriptor hook", t);
+                // Fail open: a helper must not abort BMC bundle class loading.
             }
         }
 
@@ -153,7 +154,7 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
                 }
             } catch (Throwable t) {
                 Log.error("Failed to weave PWA Icon item-property descriptor hook into " + ITEM_PROPERTY_SOURCE_CLASS + ".", t);
-                throw new WeavingException("Failed to weave PWA Icon item-property descriptor hook", t);
+                // Fail open: a helper must not abort BMC bundle class loading.
             }
         }
 
@@ -169,7 +170,7 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
                 }
             } catch (Throwable t) {
                 Log.error("Failed to weave object list search helper hook into " + FILTERING_SECTION_CLASS + ".", t);
-                throw new WeavingException("Failed to weave object list search helper hook", t);
+                // Fail open: a helper must not abort BMC bundle class loading.
             }
         }
 
@@ -185,7 +186,7 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
                 }
             } catch (Throwable t) {
                 Log.error("Failed to weave workflow field-map layout hook into " + FIELD_MAP_WIDGET_CLASS + ".", t);
-                throw new WeavingException("Failed to weave workflow field-map layout hook", t);
+                // Fail open: a helper must not abort BMC bundle class loading.
             }
         }
 
@@ -202,7 +203,7 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
                 }
             } catch (Throwable t) {
                 Log.error("Failed to weave custom suffix creation guard hook into " + className + ".", t);
-                throw new WeavingException("Failed to weave custom suffix creation guard hook", t);
+                // Fail open: a helper must not abort BMC bundle class loading.
             }
         }
 

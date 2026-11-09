@@ -2,6 +2,11 @@ package se.yrell.developertools.inspector;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.jobs.Job;
 
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
@@ -34,6 +39,9 @@ public class ObjectInsightView extends ViewPart implements ISelectionListener {
     private Table table;
     private final ObjectInsightCollector collector = new ObjectInsightCollector();
     private final LastExternalSelectionProvider selectionProvider = new LastExternalSelectionProvider();
+    private final AtomicLong selectionVersion = new AtomicLong();
+    private volatile Job currentJob;
+    private volatile boolean closed;
 
     @Override
     public void createPartControl(Composite parent) {
@@ -72,6 +80,10 @@ public class ObjectInsightView extends ViewPart implements ISelectionListener {
 
     @Override
     public void dispose() {
+        closed = true;
+        selectionVersion.incrementAndGet();
+        Job previous = currentJob;
+        if (previous != null) previous.cancel();
         try {
             getSite().getWorkbenchWindow().getSelectionService().removePostSelectionListener(this);
         } catch (Throwable ignored) {
@@ -102,7 +114,50 @@ public class ObjectInsightView extends ViewPart implements ISelectionListener {
         if (selection != null && selected != null) {
             selectionProvider.setSelection(selection);
         }
-        List<InsightRow> rows = collector.collect(selected);
+        final long version = selectionVersion.incrementAndGet();
+        Job previous = currentJob;
+        if (previous != null) previous.cancel();
+        if (selected == null) {
+            showRows(null, java.util.Collections.singletonList(
+                    new InsightRow("Info", "Status", "", "No selected Developer Studio object.")));
+            return;
+        }
+        heading.setText("Loading Object Insight...");
+        final org.eclipse.swt.widgets.Display uiDisplay = table.getDisplay();
+        Job job = new Job("Yrell Object Insight") {
+            @Override
+            protected IStatus run(IProgressMonitor monitor) {
+                if (monitor.isCanceled() || closed || selectionVersion.get() != version) return Status.CANCEL_STATUS;
+                final List<InsightRow> rows;
+                try {
+                    rows = collector.collect(selected);
+                } catch (Throwable t) {
+                    Log.warn("Object Insight collection failed: " + t.getMessage());
+                    if (monitor.isCanceled()) return Status.CANCEL_STATUS;
+                    uiDisplay.asyncExec(() -> {
+                        if (!closed && selectionVersion.get() == version) {
+                            showRows(selected, java.util.Collections.singletonList(
+                                    new InsightRow("Info", "Error", "", "Could not collect object metadata.")));
+                        }
+                    });
+                    return Status.OK_STATUS;
+                }
+                if (monitor.isCanceled() || closed || selectionVersion.get() != version) return Status.CANCEL_STATUS;
+                if (!uiDisplay.isDisposed()) {
+                    uiDisplay.asyncExec(() -> {
+                        if (!closed && selectionVersion.get() == version) showRows(selected, rows);
+                    });
+                }
+                return Status.OK_STATUS;
+            }
+        };
+        job.setSystem(true);
+        currentJob = job;
+        job.schedule(120L);
+    }
+
+    private void showRows(Object selected, List<InsightRow> rows) {
+        if (table == null || table.isDisposed()) return;
         table.setRedraw(false);
         try {
             table.removeAll();

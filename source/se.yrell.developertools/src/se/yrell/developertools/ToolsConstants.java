@@ -29,6 +29,9 @@ public final class ToolsConstants {
     public static final String PREF_FAST_FORMS_VALUES = "fastForms.values";
     public static final String PREF_FAST_FORMS_DEBUG = "fastForms.debug";
 
+    public static final String PREF_MIDTIER_CACHE_ENABLED = "midTierCache.enabled";
+    public static final String PREF_MIDTIER_CACHE_MAPPINGS = "midTierCache.serverMappings";
+
     public static final String PREF_KEEPALIVE_ENABLED = "keepAlive.enabled";
     public static final String PREF_KEEPALIVE_INTERVAL_SECONDS = "keepAlive.intervalSeconds";
 
@@ -55,6 +58,8 @@ public final class ToolsConstants {
     /** Default values: 2=Overlay, 4=Custom. */
     public static final String DEFAULT_FAST_FORMS_VALUES = "2,4";
     public static final boolean DEFAULT_FAST_FORMS_DEBUG = false;
+
+    public static final boolean DEFAULT_MIDTIER_CACHE_ENABLED = false;
 
     public static final boolean DEFAULT_KEEPALIVE_ENABLED = false;
     public static final int DEFAULT_KEEPALIVE_INTERVAL_SECONDS = 120;
