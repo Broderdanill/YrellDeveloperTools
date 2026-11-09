@@ -7,6 +7,7 @@ import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Combo;
@@ -26,6 +27,9 @@ public final class MidTierFlushDialog extends Dialog {
     private Combo formChoice;
     private Combo operationChoice;
     private Label status;
+    private Composite browserArea;
+    private GridData browserLayout;
+    private MidTierSsoBrowser ssoBrowser;
     private volatile boolean running;
 
     public MidTierFlushDialog(Shell shell, MidTierEditorContext context, MidTierConfiguration.Mapping target) {
@@ -59,7 +63,7 @@ public final class MidTierFlushDialog extends Dialog {
         operationChoice.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         operationChoice.addListener(SWT.Selection, event -> formChoice.setEnabled(operationChoice.getSelectionIndex() == 0));
         Label note = new Label(root, SWT.WRAP);
-        note.setText("Automatic login uses the username and password of the connected Developer Studio AR Server. No password, session cookie or cfgStok is saved in plugin preferences. RSSO redirects can be followed for configured trusted SSO origins; browser-only SSO flows may still require interactive login. Full flushes can affect all users.");
+        note.setText("Authentication: " + target.authenticationMethod().label() + ". Automatic mode switches to an embedded SSO browser when needed. SSO sessions are handled by the browser engine and may require interactive sign-in. No Studio password is sent to the SSO server; no password or cfgStok is stored in plugin preferences. Full flushes affect all users.");
         GridData noteLayout = new GridData(SWT.FILL, SWT.TOP, true, false);
         noteLayout.horizontalSpan = 2;
         noteLayout.widthHint = 520;
@@ -69,6 +73,14 @@ public final class MidTierFlushDialog extends Dialog {
         GridData statusLayout = new GridData(SWT.FILL, SWT.TOP, true, false);
         statusLayout.horizontalSpan = 2;
         status.setLayoutData(statusLayout);
+        browserArea = new Composite(root, SWT.NONE);
+        browserArea.setLayout(new FillLayout());
+        browserLayout = new GridData(SWT.FILL, SWT.FILL, true, true, 2, 1);
+        browserLayout.heightHint = 410;
+        browserLayout.widthHint = 780;
+        browserLayout.exclude = true;
+        browserArea.setVisible(false);
+        browserArea.setLayoutData(browserLayout);
         return root;
     }
     @Override protected void createButtonsForButtonBar(Composite parent) {
@@ -93,20 +105,25 @@ public final class MidTierFlushDialog extends Dialog {
         }
         running = true;
         getButton(IDialogConstants.OK_ID).setEnabled(false);
-        status.setText("Authenticating with the connected Developer Studio account and flushing...");
+        status.setText("Connecting to MidTier...");
         getShell().layout(true, true);
+        if (target.authenticationMethod() == MidTierConfiguration.AuthenticationMethod.SSO) {
+            startSsoBrowser(mode, form);
+            return;
+        }
         Job job = Job.create("Yrell MidTier cache flush", monitor -> {
             try {
                 MidTierHttpClient.Result result = MidTierHttpClient.forTarget(target).flush(
-                        mode, form, target.allowHttpCredentials(), () -> MidTierStudioCredentials.forServer(context.server()));
-                String message = switch (result.outcome()) {
-                    case CLEANED -> "Cache flushed: " + form + " (" + context.server() + ")";
-                    case ALREADY_EMPTY -> "Already empty: " + form + " (" + context.server() + ")";
-                    case ACCEPTED_UNVERIFIED -> "Request completed (HTTP " + result.httpStatus()
-                            + "), but MidTier did not confirm a successful flush: " + result.message();
-                };
-                Log.info("MidTier cache operation: " + message);
-                updateStatus(message, false);
+                        mode, form, target.allowHttpCredentials(),
+                        () -> MidTierStudioCredentials.forServer(context.server()),
+                        target.authenticationMethod() == MidTierConfiguration.AuthenticationMethod.AUTO);
+                completeSuccess(result, form);
+                return Status.OK_STATUS;
+            } catch (MidTierHttpClient.BrowserAuthenticationRequired e) {
+                Shell shell = getShell();
+                if (shell != null && !shell.isDisposed()) shell.getDisplay().asyncExec(() -> {
+                    if (!shell.isDisposed()) startSsoBrowser(mode, form);
+                });
                 return Status.OK_STATUS;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -123,6 +140,43 @@ public final class MidTierFlushDialog extends Dialog {
         });
         job.setUser(false);
         job.schedule();
+    }
+    private void startSsoBrowser(int mode, String form) {
+        Shell shell = getShell();
+        if (shell == null || shell.isDisposed()) return;
+        try {
+            if (ssoBrowser != null && !ssoBrowser.control().isDisposed()) ssoBrowser.control().dispose();
+            browserLayout.exclude = false;
+            browserArea.setVisible(true);
+            ssoBrowser = new MidTierSsoBrowser(browserArea, target, mode, form,
+                    message -> browserStatus(message),
+                    result -> completeSuccess(result, form),
+                    message -> {
+                        Log.warn("MidTier browser SSO: " + message);
+                        updateStatus(message, true);
+                    });
+            shell.layout(true, true);
+            shell.setSize(Math.max(shell.getSize().x, 900), Math.max(shell.getSize().y, 720));
+            ssoBrowser.start();
+        } catch (RuntimeException e) {
+            Log.error("MidTier browser-based SSO could not start", e);
+            updateStatus("SSO browser unavailable: " + e.getMessage(), true);
+        }
+    }
+    private void browserStatus(String message) {
+        if (status != null && !status.isDisposed()) {
+            status.setText(message);
+            getShell().layout(true, true);
+        }
+    }
+    private void completeSuccess(MidTierHttpClient.Result result, String form) {
+        String message = switch (result.outcome()) {
+            case CLEANED -> "Cache flushed: " + form + " (" + context.server() + ")";
+            case ALREADY_EMPTY -> "Already empty: " + form + " (" + context.server() + ")";
+            case ACCEPTED_UNVERIFIED -> "MidTier request completed, but result not verified: " + result.message();
+        };
+        Log.info("MidTier cache operation: " + message);
+        updateStatus(message, false);
     }
     private void updateStatus(String text, boolean error) {
         Shell shell = getShell();

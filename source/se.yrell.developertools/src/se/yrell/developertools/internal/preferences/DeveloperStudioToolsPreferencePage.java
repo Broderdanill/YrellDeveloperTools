@@ -326,7 +326,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
 
     private void createMidTierSettings(Composite parent) {
         addInfo(parent, "Map each connected AR server to a specific MidTier URL. The toolbar button is available in form and workflow editors. For multi-form workflows you can select the associated form.");
-        addImportant(parent, "Uses the username/password of the currently connected Developer Studio AR Server to log in to the MidTier Configuration Tool. Nothing is saved. For HTTP test environments, explicitly enable insecure credentials on each mapping. RSSO may not expose reusable credentials. Full flushes affect all users.");
+        addImportant(parent, "Per server choose Automatic, AR credentials, or RSSO / SSO browser. Automatic detects redirects to SSO and opens an embedded browser; it never passes AR credentials to the SSO domain. HTTP credentials require explicit opt-in. Full flushes affect all users.");
         final Table mappingsTable = new Table(parent, SWT.BORDER | SWT.FULL_SELECTION | SWT.SINGLE);
         mappingsTable.setHeaderVisible(true);
         mappingsTable.setLinesVisible(true);
@@ -339,12 +339,15 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         TableColumn urlColumn = new TableColumn(mappingsTable, SWT.LEFT);
         urlColumn.setText("MidTier URL");
         urlColumn.setWidth(355);
+        TableColumn authColumn = new TableColumn(mappingsTable, SWT.LEFT);
+        authColumn.setText("Authentication");
+        authColumn.setWidth(160);
         TableColumn ssoColumn = new TableColumn(mappingsTable, SWT.LEFT);
         ssoColumn.setText("SSO URL (optional)");
-        ssoColumn.setWidth(275);
+        ssoColumn.setWidth(250);
         for (MidTierConfiguration.Mapping m : midTierMappings) {
             TableItem row = new TableItem(mappingsTable, SWT.NONE);
-            row.setText(new String[] {m.server(), m.baseUrl(), m.ssoBaseUrl()});
+            row.setText(new String[] {m.server(), m.baseUrl(), m.authenticationMethod().label(), m.ssoBaseUrl()});
         }
         Composite buttons = new Composite(parent, SWT.NONE);
         buttons.setLayout(new GridLayout(3, false));
@@ -362,7 +365,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
                 }
                 midTierMappings.add(mapping);
                 TableItem row = new TableItem(mappingsTable, SWT.NONE);
-                row.setText(new String[] {mapping.server(), mapping.baseUrl(), mapping.ssoBaseUrl()});
+                row.setText(new String[] {mapping.server(), mapping.baseUrl(), mapping.authenticationMethod().label(), mapping.ssoBaseUrl()});
                 mappingsTable.setSelection(row);
             }
         });
@@ -382,7 +385,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
                     }
                 }
                 midTierMappings.set(index, mapping);
-                mappingsTable.getItem(index).setText(new String[] {mapping.server(), mapping.baseUrl(), mapping.ssoBaseUrl()});
+                mappingsTable.getItem(index).setText(new String[] {mapping.server(), mapping.baseUrl(), mapping.authenticationMethod().label(), mapping.ssoBaseUrl()});
             }
         });
         Button remove = new Button(buttons, SWT.PUSH);

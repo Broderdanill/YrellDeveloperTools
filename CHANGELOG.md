@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.53 — browser-based RSSO and Automatic Field ID restoration (2026-11-09)
+
+- Added per-MidTier authentication mode **Automatic**, **AR Server credentials**, or **RSSO / SSO browser**; previous mapping formats remain readable (new v4 format on save).
+- Automatic mode probes Configuration Tool normally. If RSSO requires a browser/interactive login, the dialog opens a real SWT Browser instead of posting AR credentials to the identity provider. Explicit SSO mode skips Studio credentials.
+- The browser follows its own login redirects and JavaScript form submissions. Only the exact configured MidTier cache page can run flush JavaScript, after validation of form action, token and AR server; browser IdP pages are not instrumented.
+- Fixed **Automatic Field IDs** regression introduced in 0.1.49: inability to access AR metadata no longer silently disables ID generation. The current-form plus in-session fallback remains active and logs a once-per-server/day warning that cross-form/global uniqueness is not guaranteed.
+- Avoids prematurely saving a candidate next ID before actual field assignment.
+- New Auto Field ID regression suite (5 checks) and SSO regression suite (13 checks), in addition to the previous tests.
+- Still requires Windows/real MidTier SSO integration testing. Java/ASM static checks are not a substitute for an actual login.
+
+
 ## 0.1.52 — RSSO-safe redirects and MidTier diagnostics (2026-11-09)
 
 - Fixes generic `MidTier attempted to navigate outside the configured context` during legitimate RSSO redirect discovery. GET-only SSO redirects are supported to same-origin `/rsso`/`/hsso`, or to an optional explicitly configured HTTPS SSO URL per MidTier mapping.

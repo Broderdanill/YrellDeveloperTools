@@ -15,10 +15,27 @@ import java.util.Map;
 public final class MidTierConfiguration {
     private MidTierConfiguration() { }
 
-    public record Mapping(String server, String baseUrl, boolean allowHttpCredentials, String ssoBaseUrl) {
-        public Mapping(String server, String baseUrl) { this(server, baseUrl, false, ""); }
+    /** AUTO probes normal AR login first, then opens an embedded browser for real SSO. */
+    public enum AuthenticationMethod {
+        AUTO("Automatic"), AR("AR Server credentials"), SSO("RSSO / SSO browser");
+        private final String label;
+        AuthenticationMethod(String label) { this.label = label; }
+        public String label() { return label; }
+    }
+
+    public record Mapping(String server, String baseUrl, boolean allowHttpCredentials,
+                          String ssoBaseUrl, AuthenticationMethod authenticationMethod) {
+        public Mapping {
+            if (authenticationMethod == null) authenticationMethod = AuthenticationMethod.AUTO;
+        }
+        public Mapping(String server, String baseUrl) {
+            this(server, baseUrl, false, "", AuthenticationMethod.AUTO);
+        }
         public Mapping(String server, String baseUrl, boolean allowHttpCredentials) {
-            this(server, baseUrl, allowHttpCredentials, "");
+            this(server, baseUrl, allowHttpCredentials, "", AuthenticationMethod.AUTO);
+        }
+        public Mapping(String server, String baseUrl, boolean allowHttpCredentials, String ssoBaseUrl) {
+            this(server, baseUrl, allowHttpCredentials, ssoBaseUrl, AuthenticationMethod.AUTO);
         }
     }
 
@@ -106,14 +123,14 @@ public final class MidTierConfiguration {
 
     /** Stable, versioned plain-string storage with Base64URL fields to avoid delimiters. */
     public static String encode(Collection<Mapping> entries) {
-        StringBuilder result = new StringBuilder("v3\n");
+        StringBuilder result = new StringBuilder("v4\n");
         Map<String, Mapping> unique = new LinkedHashMap<>();
         for (Mapping entry : entries) {
             String server = normalizeServer(entry.server());
             String baseUrl = normalizeBaseUrl(entry.baseUrl());
             String key = server.toLowerCase(Locale.ROOT);
             if (unique.containsKey(key)) throw new IllegalArgumentException("Duplicate AR Server: " + server);
-            unique.put(key, new Mapping(server, baseUrl, entry.allowHttpCredentials(), normalizeSsoUrl(entry.ssoBaseUrl())));
+            unique.put(key, new Mapping(server, baseUrl, entry.allowHttpCredentials(), normalizeSsoUrl(entry.ssoBaseUrl()), entry.authenticationMethod()));
         }
         Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
         for (Mapping entry : unique.values()) {
@@ -121,6 +138,7 @@ public final class MidTierConfiguration {
                     .append(encoder.encodeToString(entry.baseUrl().getBytes(StandardCharsets.UTF_8)))
                     .append(':').append(entry.allowHttpCredentials() ? "1" : "0")
                     .append(':').append(encoder.encodeToString(entry.ssoBaseUrl().getBytes(StandardCharsets.UTF_8)))
+                    .append(':').append(entry.authenticationMethod().name())
                     .append('\n');
         }
         return result.toString();
@@ -130,7 +148,7 @@ public final class MidTierConfiguration {
         List<Mapping> result = new ArrayList<>();
         if (text == null || text.isBlank()) return result;
         String[] lines = text.split("\\r?\\n");
-        if (lines.length < 1 || !("v1".equals(lines[0]) || "v2".equals(lines[0]) || "v3".equals(lines[0]))) return result;
+        if (lines.length < 1 || !("v1".equals(lines[0]) || "v2".equals(lines[0]) || "v3".equals(lines[0]) || "v4".equals(lines[0]))) return result;
         Base64.Decoder decoder = Base64.getUrlDecoder();
         for (int i = 1; i < lines.length; i++) {
             int div = lines[i].indexOf(':');
@@ -142,8 +160,12 @@ public final class MidTierConfiguration {
                 String url = normalizeBaseUrl(new String(decoder.decode(urlValue), StandardCharsets.UTF_8));
                 int third = second < 0 ? -1 : lines[i].indexOf(':', second + 1);
                 boolean allowHttp = second >= 0 && "1".equals(lines[i].substring(second + 1, third < 0 ? lines[i].length() : third));
-                String sso = third < 0 ? "" : normalizeSsoUrl(new String(decoder.decode(lines[i].substring(third + 1)), StandardCharsets.UTF_8));
-                if (lookup(result, server) == null) result.add(new Mapping(server, url, allowHttp, sso));
+                int fourth = third < 0 ? -1 : lines[i].indexOf(':', third + 1);
+                String ssoValue = third < 0 ? "" : lines[i].substring(third + 1, fourth < 0 ? lines[i].length() : fourth);
+                String sso = normalizeSsoUrl(new String(decoder.decode(ssoValue), StandardCharsets.UTF_8));
+                AuthenticationMethod method = fourth < 0 ? AuthenticationMethod.AUTO
+                        : AuthenticationMethod.valueOf(lines[i].substring(fourth + 1));
+                if (lookup(result, server) == null) result.add(new Mapping(server, url, allowHttp, sso, method));
             } catch (IllegalArgumentException ignored) { /* Skip corrupted row, never invent a target. */ }
         }
         return result;

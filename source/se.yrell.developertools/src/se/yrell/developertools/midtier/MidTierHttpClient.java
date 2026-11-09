@@ -32,6 +32,11 @@ import javax.swing.text.html.parser.ParserDelegator;
 public final class MidTierHttpClient {
     public record Credentials(String username, String password, int port, String authentication) { }
     public enum Outcome { CLEANED, ALREADY_EMPTY, ACCEPTED_UNVERIFIED }
+    /** Signals that an SSO browser is needed; credentials have not been posted to an IdP. */
+    public static final class BrowserAuthenticationRequired extends IOException {
+        private static final long serialVersionUID = 1L;
+        public BrowserAuthenticationRequired(String detail) { super(detail); }
+    }
     public record Result(Outcome outcome, String message, int httpStatus) { }
     private static final Duration TIMEOUT = Duration.ofSeconds(25);
     private static final int MAX_BODY = 1024 * 1024;
@@ -56,6 +61,11 @@ public final class MidTierHttpClient {
 
     public Result flush(int mode, String formName, boolean allowHttpCredentials,
             Supplier<Credentials> credentialsSupplier) throws IOException, InterruptedException {
+        return flush(mode, formName, allowHttpCredentials, credentialsSupplier, false);
+    }
+    /** AUTO mode: hand off browser-only SSO before trying AR password fallback. */
+    public Result flush(int mode, String formName, boolean allowHttpCredentials,
+            Supplier<Credentials> credentialsSupplier, boolean browserFallback) throws IOException, InterruptedException {
         if (mode < 0 || mode > 2) throw new IllegalArgumentException("Invalid cache flush mode.");
         if (mode == 0 && (formName == null || formName.isBlank())) {
             throw new IllegalArgumentException("A form name is required.");
@@ -81,6 +91,10 @@ public final class MidTierHttpClient {
                 // Try direct BMC Config Tool login before failing the operation.
                 initialSsoRedirect = e;
             }
+            if (browserFallback && (initialSsoRedirect != null
+                    || (page != null && !isMidTierUri(page.uri())))) {
+                throw new BrowserAuthenticationRequired("MidTier requires browser-based SSO. No AR credentials were sent to SSO.");
+            }
             if (form == null || (html != null && isLogin(html))) {
                 // Only read BMC Studio's password if there is not already a valid MidTier session.
                 if ("http".equalsIgnoreCase(base.getScheme()) && !allowHttpCredentials) {
@@ -95,10 +109,12 @@ public final class MidTierHttpClient {
                     authenticate(credentials);
                     page = request(pageUri, null);
                 } catch (SsoRedirectException e) {
+                    if (browserFallback) throw new BrowserAuthenticationRequired("MidTier requires browser-based SSO after AR login.");
                     throw new IOException("MidTier still requires SSO authentication after the BMC login attempt. "
                             + e.getMessage() + " No flush was sent.", e);
                 }
                 if (!isMidTierUri(page.uri())) {
+                    if (browserFallback) throw new BrowserAuthenticationRequired("SSO needs an interactive browser session.");
                     throw new IOException("The SSO journey did not return to MidTier. "
                             + "Interactive SSO or browser-only sessions cannot be completed by Java HttpClient. No flush was sent.");
                 }
@@ -180,7 +196,7 @@ public final class MidTierHttpClient {
             verifyNavigable(current, body != null);
             HttpRequest.Builder req = HttpRequest.newBuilder(current).timeout(TIMEOUT)
                     .header("Accept", "text/html,application/xhtml+xml")
-                    .header("User-Agent", "Mozilla/5.0 (compatible; YrellDeveloperTools/0.1.52; Java/17)");
+                    .header("User-Agent", "Mozilla/5.0 (compatible; YrellDeveloperTools/0.1.53; Java/17)");
             if (body != null) {
                 String path = current.getPath().endsWith("/ConfigServlet")
                         ? "shared/config/config.jsp"

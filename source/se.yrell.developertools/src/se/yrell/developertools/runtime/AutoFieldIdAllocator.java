@@ -42,6 +42,7 @@ public final class AutoFieldIdAllocator {
     private static final Object LOCK = new Object();
     private static final Map<String, DayCache> DAY_CACHE = new HashMap<String, DayCache>();
     private static final Map<String, Integer> FIELD_ID_FIELD_CACHE = new HashMap<String, Integer>();
+    private static final Set<String> METADATA_FALLBACK_WARNED = new HashSet<String>();
 
     private AutoFieldIdAllocator() {
     }
@@ -118,18 +119,22 @@ public final class AutoFieldIdAllocator {
             used.addAll(currentFormUsed);
             used.addAll(fetchSessionAssignedIdsForDay(form, developerId, day));
             Set<Integer> metadataIds = fetchMetadataUsedIdsForDay(form, developerId, day);
-            if (metadataIds == null) {
-                // Metadata cannot be verified: use Developer Studio's native ID allocation.
-                return -1;
+            // Metadata access is best-effort. A Studio user may lack permission to
+            // query the internal metadata form even though the current form is
+            // editable. Do not disable auto IDs when that happens: fall back to
+            // checking the current form and allocations made in this session.
+            // This does NOT guarantee server-wide uniqueness across other forms
+            // or concurrent Developer Studio clients (nor did the original scheme).
+            if (metadataIds != null) {
+                used.addAll(metadataIds);
             }
-            used.addAll(metadataIds);
 
             for (int sequence = FIRST_SEQUENCE; sequence <= LAST_SEQUENCE; sequence++) {
                 long candidateLong = buildId(developerId, day, sequence);
                 if (candidateLong > 0 && candidateLong <= Integer.MAX_VALUE) {
                     int candidate = (int) candidateLong;
                     if (!used.contains(Integer.valueOf(candidate))) {
-                        ToolsPreferences.setAutoFieldNextId(Integer.toString(candidate));
+                        // Do not persist an ID until assignment to the field succeeds.
                         return candidate;
                     }
                 }
@@ -150,7 +155,8 @@ public final class AutoFieldIdAllocator {
             ARServerUser context = getContext(form);
             IStore store = safeStore(form);
             if (context == null && !(store instanceof IEntryStore)) {
-                Log.warn("Auto Field ID: metadata unavailable, refusing unverified generated ID.");
+                warnMetadataFallback(form, developerId,
+                        "No readable ARServerUser or IEntryStore context");
                 return null;
             }
 
@@ -190,13 +196,32 @@ public final class AutoFieldIdAllocator {
                 }
             }
 
-            if (lastFailure != null) {
-                Log.warn("Auto Field ID: metadata scan failed on both forms; reverting to Developer Studio native ID. Cause: " + lastFailure.getMessage());
-            }
+            warnMetadataFallback(form, developerId, lastFailure == null
+                    ? "Metadata Field ID field not available on either metadata form"
+                    : "Metadata query failed: " + safeFailureSummary(lastFailure));
         } catch (Throwable t) {
-            Log.warn("Auto Field ID: metadata scan failed; reverting to native ID. Cause: " + t.getMessage());
+            warnMetadataFallback(form, developerId, "Metadata query failed: " + safeFailureSummary(t));
         }
         return null;
+    }
+
+    /** Warn once per server/developer/day rather than on every UI field creation. */
+    private static void warnMetadataFallback(IFormObject form, int developerId, String reason) {
+        String key = sessionKey(form, developerId, LocalDate.now(ZoneId.systemDefault()));
+        synchronized (LOCK) {
+            if (!METADATA_FALLBACK_WARNED.add(key)) {
+                return;
+            }
+        }
+        Log.warn("Auto Field ID metadata verification unavailable for " + safeServerKey(form)
+                + " (" + reason + "). Using current-form and in-session collision checks. "
+                + "IDs on other forms or in concurrent clients cannot be verified.");
+    }
+
+    private static String safeFailureSummary(Throwable failure) {
+        if (failure == null) return "unknown failure";
+        String message = failure.getMessage();
+        return failure.getClass().getSimpleName() + (message == null ? "" : ": " + message);
     }
 
     private static void addFieldIdFromEntry(Set<Integer> used, Entry entry, int fieldIdField, int developerId, LocalDate day) {

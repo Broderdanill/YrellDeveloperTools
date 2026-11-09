@@ -1,3 +1,10 @@
+== AutoFieldIdRegressionTest ==
+[Yrell Developer Tools] WARN Auto Field ID metadata verification unavailable for no-metadata-a (No readable ARServerUser or IEntryStore context). Using current-form and in-session collision checks. IDs on other forms or in concurrent clients cannot be verified.
+[Yrell Developer Tools] WARN Auto Field ID metadata verification unavailable for no-metadata-b (No readable ARServerUser or IEntryStore context). Using current-form and in-session collision checks. IDs on other forms or in concurrent clients cannot be verified.
+[Yrell Developer Tools] WARN Auto Field ID metadata verification unavailable for no-metadata-c (No readable ARServerUser or IEntryStore context). Using current-form and in-session collision checks. IDs on other forms or in concurrent clients cannot be verified.
+[Yrell Developer Tools] WARN Auto Field ID metadata verification unavailable for no-metadata-d (No readable ARServerUser or IEntryStore context). Using current-form and in-session collision checks. IDs on other forms or in concurrent clients cannot be verified.
+[Yrell Developer Tools] WARN Auto Field ID metadata verification unavailable for no-metadata-e (No readable ARServerUser or IEntryStore context). Using current-form and in-session collision checks. IDs on other forms or in concurrent clients cannot be verified.
+Auto Field ID regression tests: 5 PASS
 == DefaultNamingRegressionTest ==
 PASS: 14 Default naming assertions
 == FastFormsStateRegressionTest ==
@@ -23,22 +30,36 @@ WEAVING-FAST com/bmc/arsys/studio/commonui/common/objectlist/ObjectListComponent
 WEAVING-FAST com/bmc/arsys/studio/commonui/common/objectlist/OverlayObjectListFilter: MATCH (1794 bytes)
 WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/PropertyFilter: MATCH (1421 bytes)
 WEAVING-FAST com/bmc/arsys/studio/model/internal/providers/SQLCommands: MATCH (29002 bytes)
+[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.model.internal.providers.ARDynamicNamedListProvider
 AGENT-FAST com/bmc/arsys/studio/model/internal/providers/ARDynamicNamedListProvider: MATCH (16256 bytes)
+[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.model.internal.providers.ARBaseNamedListProvider
 AGENT-FAST com/bmc/arsys/studio/model/internal/providers/ARBaseNamedListProvider: MATCH (41281 bytes)
+[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.model.internal.providers.FormListProvider
 AGENT-FAST com/bmc/arsys/studio/model/internal/providers/FormListProvider: MATCH (33787 bytes)
+[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.ui.views.objectlist.ObjectListCheckboxFilterManager$PropertyTypeCheckBoxConfiguration
 AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListCheckboxFilterManager$PropertyTypeCheckBoxConfiguration: MATCH (2183 bytes)
+[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.ui.views.objectlist.FilteringSection
 AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/FilteringSection: MATCH (29353 bytes)
+[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.ui.views.objectlist.FilteringSection$8
 AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/FilteringSection$8: MATCH (2463 bytes)
+[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.ui.views.objectlist.ObjectListView
 AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListView: MATCH (79232 bytes)
+[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.ui.views.objectlist.ObjectListView$12
 AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListView$12: MATCH (3704 bytes)
+[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.commonui.common.objectlist.ObjectListComponent
 AGENT-FAST com/bmc/arsys/studio/commonui/common/objectlist/ObjectListComponent: MATCH (33403 bytes)
+[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.commonui.common.objectlist.OverlayObjectListFilter
 AGENT-FAST com/bmc/arsys/studio/commonui/common/objectlist/OverlayObjectListFilter: MATCH (1795 bytes)
+[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.ui.views.objectlist.PropertyFilter
 AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/PropertyFilter: MATCH (1422 bytes)
+[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.model.internal.providers.SQLCommands
 AGENT-FAST com/bmc/arsys/studio/model/internal/providers/SQLCommands: MATCH (29003 bytes)
 == MidTierCacheRegressionTest ==
 MidTier cache regression tests: 35 PASS (embedded mock HTTP server)
+== MidTierSsoRegressionTest ==
+MidTier SSO tests: 13 PASS
 == agent bootstrap ==
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[Yrell Developer Tools FastForms Agent] loaded v10; enabled=false, values=2,4, logFile=/tmp/devstudio-fastforms.log, bootstrapBridge=bridge-only
 PASS: 6 Fast Forms checkbox state assertions
 ALL TESTS PASSED
-
-0.1.52: New trusted SSO GET redirection checks, direct-login fallback and redirection safety regression tests passed.
