@@ -1,24 +1,42 @@
-Yrell Developer Tools 0.1.50 - Build and test results
-2026-11-09
-
-Input: user-supplied BMC Developer Studio 26.1.1 build001 Windows distribution ZIP.
-Environment: Linux build host, Java 17 bytecode target (--release 17), Node.js 22.16 for optional simulated-browser tests.
-
-PASS: compilation of all 51 Java source files against original BMC Developer Studio ZIP.
-PASS: Eclipse/OSGi plugin and Java-agent JAR assembly.
-PASS: 14 Default naming assertions (only table columns).
-PASS: 6 Fast object lists state assertions.
-PASS: 8 static BMC UI transformer matches.
-PASS: 12 OSGi Fast object list transformer matches.
-PASS: 12 Java-agent Fast object list transformer matches.
-PASS: 28 MidTier config, URL, mapping, form operation, JS generation checks.
-PASS: 8 MidTier JavaScript browser DOM simulation cases including malformed action, wrong server, missing cfgStok.
-PASS: Java-agent JVM bootstrap smoke test.
-PASS: plugin.xml is well-formed XML; JAR contains toilet icon and all MidTier classes.
-PASS: uploaded MidTier HTML form names, input names and POST actions matched against implementation.
-
-NOT VERIFIED: Real BMC Windows Developer Studio GUI toolbar and SWT Browser login.
-NOT VERIFIED: Live MidTier session authentication, successful server-side cache purge or all-pods propagation.
-NOT VERIFIED: MidTier Configuration Tool response status interpretation (the dialog shows the response and only reports request submission).
-
-The archive must not include BMC proprietary runtime JAR dependencies or the uploaded live cfgStok token.
+== DefaultNamingRegressionTest ==
+PASS: 14 Default naming assertions
+== FastFormsStateRegressionTest ==
+PASS: 6 Fast Forms checkbox state assertions
+== TransformAudit ==
+STATIC UIFieldFactoryTransformer on com/bmc/arsys/studio/ui/editors/form/model/UIFieldFactory: MATCH (46869 bytes)
+STATIC AddFieldToViewCommandTransformer on com/bmc/arsys/studio/ui/editors/form/commands/AddFieldToViewCommand: MATCH (16132 bytes)
+STATIC UITableFieldTransformer on com/bmc/arsys/studio/ui/editors/form/model/UITableField: MATCH (42784 bytes)
+STATIC FormHelperNameTransformer on com/bmc/arsys/studio/model/internal/helper/FormHelper: MATCH (59260 bytes)
+STATIC UIFieldPropertyDescriptorTransformer on com/bmc/arsys/studio/ui/editors/form/model/UIField: MATCH (85923 bytes)
+STATIC ItemPropertySourceTransformer on com/bmc/arsys/studio/ui/common/properties/ItemPropertySource: MATCH (5367 bytes)
+STATIC ObjectListSearchTransformer on com/bmc/arsys/studio/ui/views/objectlist/FilteringSection: MATCH (29480 bytes)
+STATIC WorkflowFieldMapLayoutTransformer on com/bmc/arsys/studio/ui/common/fieldmap/FieldMapWidget: MATCH (38289 bytes)
+WEAVING-FAST com/bmc/arsys/studio/model/internal/providers/ARDynamicNamedListProvider: MATCH (16255 bytes)
+WEAVING-FAST com/bmc/arsys/studio/model/internal/providers/ARBaseNamedListProvider: MATCH (41280 bytes)
+WEAVING-FAST com/bmc/arsys/studio/model/internal/providers/FormListProvider: MATCH (33786 bytes)
+WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListCheckboxFilterManager$PropertyTypeCheckBoxConfiguration: MATCH (2182 bytes)
+WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/FilteringSection: MATCH (29352 bytes)
+WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/FilteringSection$8: MATCH (2462 bytes)
+WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListView: MATCH (79231 bytes)
+WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListView$12: MATCH (3703 bytes)
+WEAVING-FAST com/bmc/arsys/studio/commonui/common/objectlist/ObjectListComponent: MATCH (33402 bytes)
+WEAVING-FAST com/bmc/arsys/studio/commonui/common/objectlist/OverlayObjectListFilter: MATCH (1794 bytes)
+WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/PropertyFilter: MATCH (1421 bytes)
+WEAVING-FAST com/bmc/arsys/studio/model/internal/providers/SQLCommands: MATCH (29002 bytes)
+AGENT-FAST com/bmc/arsys/studio/model/internal/providers/ARDynamicNamedListProvider: MATCH (16256 bytes)
+AGENT-FAST com/bmc/arsys/studio/model/internal/providers/ARBaseNamedListProvider: MATCH (41281 bytes)
+AGENT-FAST com/bmc/arsys/studio/model/internal/providers/FormListProvider: MATCH (33787 bytes)
+AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListCheckboxFilterManager$PropertyTypeCheckBoxConfiguration: MATCH (2183 bytes)
+AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/FilteringSection: MATCH (29353 bytes)
+AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/FilteringSection$8: MATCH (2463 bytes)
+AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListView: MATCH (79232 bytes)
+AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListView$12: MATCH (3704 bytes)
+AGENT-FAST com/bmc/arsys/studio/commonui/common/objectlist/ObjectListComponent: MATCH (33403 bytes)
+AGENT-FAST com/bmc/arsys/studio/commonui/common/objectlist/OverlayObjectListFilter: MATCH (1795 bytes)
+AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/PropertyFilter: MATCH (1422 bytes)
+AGENT-FAST com/bmc/arsys/studio/model/internal/providers/SQLCommands: MATCH (29003 bytes)
+== MidTierCacheRegressionTest ==
+MidTier cache regression tests: 21 PASS (embedded mock HTTP server)
+== agent bootstrap ==
+PASS: 6 Fast Forms checkbox state assertions
+ALL TESTS PASSED

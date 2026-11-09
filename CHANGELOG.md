@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.51 — automatic MidTier login using Developer Studio credentials (2026-11-09)
+
+- Replaced SWT Browser login with a Java 17 `HttpClient` based on the verified MidTier Configuration Tool workflow.
+- Uses the connected BMC `IAuthenticationStore.getUser()/getPassword()` and server port/authentication source, with no reflection or password in preferences.
+- Authenticates through BMC's `ConfigServlet?action=logon`, preserving only in-memory cookies; acquires fresh `cfgStok` from each cache page.
+- Adds strict same-origin, action path, token, server dropdown, bounded timeout and redirect checks before POST.
+- Forms: `is cleaned !` -> cleaned, `doesn't exists in cache` -> already empty; other responses remain unverified.
+- Removes second confirmation for form flush. Global/All-Pods flush still prompts due potential service impact.
+- Per-AR-server opt-in for automatic credentials over HTTP, off by default; existing v1 mappings are migrated safely to v2.
+- Native dialog reports asynchronous status, no embedded browser; job is off the SWT UI thread.
+- New mock-server integration tests for auth, CSRF token, cookies, safe URL, normal and empty responses, full/pods switches; Java parser verified against user-provided saved MidTier HTML (not included in ZIP).
+- **Not verified in Windows:** live `getPassword()` contents under user's authentication mode, Java HTTP request acceptance by live MidTier, Eclipse UI behavior. RSSO/SSO may not expose a usable password.
+
 ## 0.1.50 – MidTier Cache Flush (2026-11-09)
 
 - **New: MidTier Cache Flush** in the existing feature table, disabled by default, with an Add/Edit/Remove mapping table for connected AR servers and their MidTier context URLs.

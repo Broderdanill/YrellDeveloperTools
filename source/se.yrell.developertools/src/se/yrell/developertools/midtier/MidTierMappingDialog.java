@@ -7,6 +7,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Combo;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
@@ -17,6 +18,7 @@ import org.eclipse.swt.widgets.Text;
 public final class MidTierMappingDialog extends TitleAreaDialog {
     private Combo serverField;
     private Text urlField;
+    private Button allowHttp;
     private MidTierConfiguration.Mapping result;
     private final MidTierConfiguration.Mapping initial;
     public MidTierMappingDialog(Shell parent, MidTierConfiguration.Mapping initial) {
@@ -26,7 +28,7 @@ public final class MidTierMappingDialog extends TitleAreaDialog {
     @Override protected Control createDialogArea(Composite parent) {
         Composite root = (Composite) super.createDialogArea(parent);
         setTitle("MidTier cache target");
-        setMessage("Map one connected AR server to the URL of its MidTier instance. No credentials are saved.");
+        setMessage("Map a connected AR Server to MidTier. Uses Studio login credentials on demand; never stores a password.");
         Composite fields = new Composite(root, SWT.NONE);
         fields.setLayout(new GridLayout(2, false));
         fields.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
@@ -43,6 +45,10 @@ public final class MidTierMappingDialog extends TitleAreaDialog {
         if (initial != null) urlField.setText(initial.baseUrl());
         else urlField.setText("https://midtier.example.com/arsys");
         new Label(fields, SWT.NONE).setText("");
+        allowHttp = new Button(fields, SWT.CHECK);
+        allowHttp.setText("Allow sending Studio credentials over unencrypted HTTP (test only)");
+        allowHttp.setSelection(initial != null && initial.allowHttpCredentials());
+        new Label(fields, SWT.NONE).setText("");
         Label hint = new Label(fields, SWT.WRAP);
         hint.setText("Use the URL of the specific MidTier, such as http://ars.sandbox:8080/arsys. For a cluster, configure the correct instance; a load balancer does not necessarily reach every pod.");
         GridData hintData = new GridData(SWT.FILL, SWT.TOP, true, false);
@@ -54,7 +60,7 @@ public final class MidTierMappingDialog extends TitleAreaDialog {
         try {
             result = new MidTierConfiguration.Mapping(
                     MidTierConfiguration.normalizeServer(serverField.getText()),
-                    MidTierConfiguration.normalizeBaseUrl(urlField.getText()));
+                    MidTierConfiguration.normalizeBaseUrl(urlField.getText()), allowHttp.getSelection());
             super.okPressed();
         } catch (IllegalArgumentException e) {
             setErrorMessage(e.getMessage());

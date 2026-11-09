@@ -326,7 +326,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
 
     private void createMidTierSettings(Composite parent) {
         addInfo(parent, "Map each connected AR server to a specific MidTier URL. The toolbar button is available in form and workflow editors. For multi-form workflows you can select the associated form.");
-        addImportant(parent, "The MidTier Configuration Tool has its own authenticated browser session. You may need to log in. The plugin never saves passwords or the cfgStok security token. Full flushes can affect all AR servers and tenants on that MidTier.");
+        addImportant(parent, "Uses the username/password of the currently connected Developer Studio AR Server to log in to the MidTier Configuration Tool. Nothing is saved. For HTTP test environments, explicitly enable insecure credentials on each mapping. RSSO may not expose reusable credentials. Full flushes affect all users.");
         final Table mappingsTable = new Table(parent, SWT.BORDER | SWT.FULL_SELECTION | SWT.SINGLE);
         mappingsTable.setHeaderVisible(true);
         mappingsTable.setLinesVisible(true);
@@ -803,7 +803,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         } catch (Throwable ignored) {
             // Fall through to generic example.
         }
-        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.50.jar";
+        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.51.jar";
     }
 
     private boolean isValidDeveloperId(String developerIdText) {

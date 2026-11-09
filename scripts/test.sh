@@ -13,7 +13,7 @@ elif [[ -d "$STUDIO/x64/plugins" ]]; then
 elif [[ -d "$STUDIO/plugins" ]]; then
   STUDIO="$STUDIO/plugins"
 fi
-JAR="$ROOT/install/se.yrell.developertools_0.1.50.jar"
+JAR="$ROOT/install/se.yrell.developertools_0.1.51.jar"
 if [[ ! -f "$JAR" ]]; then echo "Build JAR first: $JAR" >&2; exit 2; fi
 mkdir -p "$ROOT/.build/tests"
 CLASSPATH=$(find "$STUDIO" -type f -name '*.jar' | sort | paste -sd: -)
@@ -22,13 +22,7 @@ if ! javac -proc:none --release 17 -encoding UTF-8 -cp "$CP" -d "$ROOT/.build/te
 for test in DefaultNamingRegressionTest FastFormsStateRegressionTest TransformAudit MidTierCacheRegressionTest; do
   echo "== $test =="
   if [[ "$test" == "MidTierCacheRegressionTest" ]]; then
-    java -cp "$CP" "$test" > "$ROOT/.build/midtier-tests.txt" || { cat "$ROOT/.build/midtier-tests.txt"; exit 1; }
-    head -1 "$ROOT/.build/midtier-tests.txt"
-    if command -v node >/dev/null 2>&1; then
-      node "$ROOT/scripts/test-midtier-js.js" "$ROOT/.build/midtier-tests.txt" || exit 1
-    else
-      echo 'Skipping optional MidTier browser-JavaScript tests (Node.js not installed).'
-    fi
+    java -cp "$CP" "$test" || exit 1
   else
     java -cp "$CP" "$test" || exit 1
   fi
