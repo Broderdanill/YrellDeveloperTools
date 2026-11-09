@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.54 — Configuration Tool authorization after RSSO (2026-11-09)
+
+- Corrected the two-attempt RSSO loop that treated a MidTier `Configuration Tool authorization failed` page as an ordinary browser redirect. RSSO authentication and Configuration Tool administrator authentication are separate states.
+- On this explicit authorization response, the embedded browser opens the configured MidTier's own `/arsys/shared/config/config.jsp`, rather than repeatedly opening the cache JSP. No cache flush is submitted while access is denied.
+- In **Automatic** mode, if BMC's genuine login form appears on the exact `config.jsp` location and posts to the expected local `ConfigServlet?action=logon`, the plugin attempts one administrator login with Developer Studio's existing AR credentials. HTTPS is required unless the existing per-server test-only HTTP override is enabled. The browser retains its own session cookies.
+- In **RSSO / SSO browser** mode, the separate Configuration Tool login remains interactive and never reads Developer Studio's password. If AR credentials are not reusable or do not authorize Configuration Tool, the same browser pane allows manual administrator login.
+- MidTier authorization failures after a cache POST no longer count as a successful or unverified flush. No automatic cache form submission occurs before `cfgStok`, AR server and form action validation.
+- Added 13 Configuration Tool authorization regression assertions and 11 JavaScript browser-DOM checks (Node.js if available) in addition to existing tests.
+- No changes to Automatic Field IDs, Default naming, Fast object lists, PWA Icon Helper, or other plugin features since 0.1.53.
+
+
 ## 0.1.53 — browser-based RSSO and Automatic Field ID restoration (2026-11-09)
 
 - Added per-MidTier authentication mode **Automatic**, **AR Server credentials**, or **RSSO / SSO browser**; previous mapping formats remain readable (new v4 format on save).

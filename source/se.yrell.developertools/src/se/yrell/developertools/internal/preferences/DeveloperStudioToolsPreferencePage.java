@@ -809,7 +809,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         } catch (Throwable ignored) {
             // Fall through to generic example.
         }
-        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.52.jar";
+        return "-javaagent:C:\\Temp\\se.yrell.developertools_0.1.54.jar";
     }
 
     private boolean isValidDeveloperId(String developerIdText) {

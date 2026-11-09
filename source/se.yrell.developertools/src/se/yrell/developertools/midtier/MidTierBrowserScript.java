@@ -27,6 +27,51 @@ public final class MidTierBrowserScript {
         return out.append('"').toString();
     }
 
+    /** Read-only classification, only called on the configured MidTier origin.
+     * RSSO may authenticate successfully while MidTier Configuration Tool
+     * independently refuses access. That response is NOT a cache page.
+     */
+    public static String pageState() {
+        return "(function(){"
+                + "if(document.forms.namedItem('loginForm'))return 'CONFIG_LOGIN';"
+                + "var content=(document.body&&document.body.textContent||'').replace(/\\s+/g,' ').toLowerCase();"
+                + "if(content.includes('configuration tool authorization failed'))return 'CONFIG_DENIED';"
+                + "if(document.forms.namedItem('cache_clenaup_form')||document.forms.namedItem('flush_cache_form'))return 'CACHE_FORM';"
+                + "return 'OTHER';})()";
+    }
+
+    /** Verify BMC's real configuration login form; NEVER submit on an IdP page. */
+    public static String configLoginCheck(String baseUrl) {
+        return "(function(){"
+                + "var base=new URL(" + jsString(MidTierConfiguration.normalizeBaseUrl(baseUrl)) + ");"
+                + "var f=document.forms.namedItem('loginForm');if(!f)return 'NO_LOGIN_FORM';"
+                + "var target=new URL(f.getAttribute('action')||'',location.href);"
+                + "var wanted=new URL(base.pathname+'/servlet/ConfigServlet',base.origin);"
+                + "if(target.origin!==wanted.origin||target.pathname!==wanted.pathname"
+                + "||target.search!=='?action=logon'||(f.method||'').toLowerCase()!=='post')return 'UNEXPECTED_LOGIN_ACTION';"
+                + "if(!f.querySelector('input[name=\"username\"]')||!f.querySelector('input[name=\"pwd\"]')"
+                + "||!f.querySelector('input[name=\"servername\"]'))return 'MISSING_LOGIN_FIELDS';"
+                + "var cfg=f.querySelector('input[name=\"isFromCfgTool\"]');"
+                + "if(!cfg||cfg.value!=='true')return 'NOT_CONFIG_TOOL_LOGIN';"
+                + "return 'READY';})()";
+    }
+
+    /** Submit only BMC's verified login form on the exact configured origin.
+     * Username/password exist only in this ephemeral executed script and browser
+     * memory, are never stored in plugin preferences or logged.
+     */
+    public static String submitConfigLogin(String baseUrl, String server, String user, String password) {
+        return "(function(){if(" + configLoginCheck(baseUrl) + "!=='READY')return false;"
+                + "var f=document.forms.namedItem('loginForm');"
+                + "f.querySelector('input[name=\"username\"]').value=" + jsString(user) + ";"
+                + "f.querySelector('input[name=\"pwd\"]').value=" + jsString(password) + ";"
+                + "Array.from(f.querySelectorAll('input[name=\"servername\"]')).filter(function(x){return !x.disabled;})"
+                + ".forEach(function(x){x.value=" + jsString(server) + ";});"
+                + "var tz=f.querySelector('input[name=\"timezone\"]');"
+                + "if(tz)tz.value=Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/Stockholm';"
+                + "f.submit();return true;})()";
+    }
+
     /** Read-only check on the exact cache JSP; never launches an operation. */
     public static String preflight(String baseUrl, int mode, String server) {
         String expectedPath = mode == 0 ? "/servlet/GoatConfigServlet" : "/servlet/GoatConfigServlet";
@@ -72,6 +117,8 @@ public final class MidTierBrowserScript {
     /** Probe result only in configured MidTier origin after the submission. */
     public static String resultProbe() {
         return "(function(){if(document.forms.namedItem('loginForm'))return 'LOGIN_REQUIRED';"
+                + "var content=(document.body&&document.body.textContent||'').toLowerCase();"
+                + "if(content.includes('configuration tool authorization failed'))return 'CONFIG_DENIED';"
                 + "var nodes=document.querySelectorAll('.status,.error,.LoginError');"
                 + "var text=Array.from(nodes).map(function(n){return (n.textContent||'').trim();})"
                 + ".filter(Boolean).join(' ').replace(/\\s+/g,' ').trim();"

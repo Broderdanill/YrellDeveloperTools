@@ -63,7 +63,7 @@ public final class MidTierFlushDialog extends Dialog {
         operationChoice.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
         operationChoice.addListener(SWT.Selection, event -> formChoice.setEnabled(operationChoice.getSelectionIndex() == 0));
         Label note = new Label(root, SWT.WRAP);
-        note.setText("Authentication: " + target.authenticationMethod().label() + ". Automatic mode switches to an embedded SSO browser when needed. SSO sessions are handled by the browser engine and may require interactive sign-in. No Studio password is sent to the SSO server; no password or cfgStok is stored in plugin preferences. Full flushes affect all users.");
+        note.setText("Authentication: " + target.authenticationMethod().label() + ". Automatic mode switches to an embedded SSO browser when needed. SSO sessions are handled by the browser engine. Configuration Tool may also require a separate administrator login. No Studio password is sent to the SSO server; no password or cfgStok is stored in plugin preferences. Full flushes affect all users.");
         GridData noteLayout = new GridData(SWT.FILL, SWT.TOP, true, false);
         noteLayout.horizontalSpan = 2;
         noteLayout.widthHint = 520;
@@ -149,6 +149,8 @@ public final class MidTierFlushDialog extends Dialog {
             browserLayout.exclude = false;
             browserArea.setVisible(true);
             ssoBrowser = new MidTierSsoBrowser(browserArea, target, mode, form,
+                    target.authenticationMethod() == MidTierConfiguration.AuthenticationMethod.AUTO
+                        ? () -> MidTierStudioCredentials.forServer(context.server()) : null,
                     message -> browserStatus(message),
                     result -> completeSuccess(result, form),
                     message -> {
