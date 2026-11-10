@@ -70,20 +70,20 @@ ObjectListSortingRegressionTest: PASS 13
 == ManualSuffixCleanupRegressionTest ==
 ManualSuffixCleanupRegressionTest: 36 PASS
 == MessageSuppressionRegressionTest ==
-MessageSuppressionRegressionTest PASS 54
+MessageSuppressionRegressionTest PASS 65
 == MidTierBrowserDomRegressionTest ==
 Legacy SWT Browser ES5 DOM simulation: 60 PASS
 == agent bootstrap ==
 OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-[Yrell Developer Tools FastForms Agent] loaded v10; enabled=false, values=2,4, logFile=/tmp/devstudio-fastforms.log, bootstrapBridge=bridge-only
+[Yrell Developer Tools FastForms Agent] loaded v11 (release 0.1.65); enabled=false, values=2,4, logFile=/tmp/devstudio-fastforms.log, bootstrapBridge=bridge-only
 PASS: 6 Fast Forms checkbox state assertions
 == early agent message hook ==
 OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-[Yrell Developer Tools FastForms Agent] loaded v10; enabled=false, values=2,4, logFile=/tmp/devstudio-fastforms.log, bootstrapBridge=bridge-only
+[Yrell Developer Tools FastForms Agent] loaded v11 (release 0.1.65); enabled=false, values=2,4, logFile=/tmp/devstudio-fastforms.log, bootstrapBridge=bridge-only
 [Yrell Developer Tools FastForms Agent] Message Suppressor: BMC presentation class hooked: com/bmc/arsys/studio/commonui/common/info/Info
-MessageSuppressionRegressionTest PASS 55
+MessageSuppressionRegressionTest PASS 66
 == save-warning UI class verification (real BMC 26.1.1, -javaagent, -Xverify:all) ==
-[Yrell Developer Tools FastForms Agent] loaded v10; enabled=false, values=2,4, logFile=/tmp/devstudio-fastforms.log, bootstrapBridge=bridge-only
+[Yrell Developer Tools FastForms Agent] loaded v11 (release 0.1.65); enabled=false, values=2,4, logFile=/tmp/devstudio-fastforms.log, bootstrapBridge=bridge-only
 [Yrell Developer Tools FastForms Agent] Message Suppressor: BMC presentation class hooked: com/bmc/arsys/studio/commonui/common/info/Info
 [Yrell Developer Tools FastForms Agent] Message Suppressor: BMC presentation class hooked: com/bmc/arsys/studio/ui/editors/form/FormEditor
 [Yrell Developer Tools FastForms Agent] Message Suppressor: BMC presentation class hooked: com/bmc/arsys/studio/documenteditor/common/documenteditor/DocumentPage

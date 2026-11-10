@@ -44,7 +44,10 @@ public final class FastFormsAgent {
             System.err.println("[Yrell Developer Tools FastForms Agent] bootstrap bridge unavailable; agent disabled, BMC code left unchanged.");
             return;
         }
-        FastFormsBridge.logAlways("loaded v10; enabled=" + FastFormsBridge.isEnabledForAgent() +
+        // Startup verification: the installed Eclipse plugin and the -javaagent
+        // must use the SAME release. An old agent can keep the previous hooks.
+        System.setProperty("se.yrell.developertools.agent.version", "0.1.65");
+        FastFormsBridge.logAlways("loaded v11 (release 0.1.65); enabled=" + FastFormsBridge.isEnabledForAgent() +
             ", values=" + FastFormsBridge.valuesForAgent() +
             ", logFile=" + FastFormsBridge.logFilePathForAgent() +
             ", bootstrapBridge=bridge-only");

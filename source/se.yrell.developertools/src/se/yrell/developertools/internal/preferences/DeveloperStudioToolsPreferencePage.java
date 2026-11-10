@@ -805,7 +805,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
                 "Restart Developer Studio with -clean after installation. Existing lists may need to be reopened."));
         features.put(FEATURE_MESSAGE_SUPPRESSION, new Feature(FEATURE_MESSAGE_SUPPRESSION, "Message Suppressor",
                 "Hides selected warning codes during save, without suppressing errors or affecting validation.",
-                "Restart Developer Studio with -clean after installing 0.1.64. Editing code list takes effect immediately."));
+                "Restart Developer Studio with -clean after installing 0.1.65. Editing code list takes effect immediately."));
         features.put(FEATURE_MIDTIER_CACHE, new Feature(FEATURE_MIDTIER_CACHE, "MidTier Cache Flush",
                 "Flush MidTier cache for the current form or workflow, a complete instance, or all pods.",
                 "No restart required for settings. Reopen an editor if the toolbar visibility does not update immediately."));

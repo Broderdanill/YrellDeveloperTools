@@ -161,29 +161,119 @@ public final class MessageSuppressionBridge {
         }
     }
 
+    // This is intentionally tri-state rather than assuming every unreadable
+    // object represents an empty list: a reflection failure must never hide a
+    // BMC error or an unconfigured warning.
+    private static final int MARKERS_UNKNOWN = 0;
+    private static final int MARKERS_EMPTY = 1;
+    private static final int MARKERS_ALL_SUPPRESSED = 2;
+    private static final int MARKERS_VISIBLE = 3;
+
+    private static int markerState(Object source, String interfaceName) {
+        if (source == null) return MARKERS_UNKNOWN;
+        try {
+            Class<?> contract = findContract(source.getClass(), interfaceName);
+            Class<?> accessor = contract != null ? contract : source.getClass();
+            Object raw = accessor.getMethod("getMarkers").invoke(source);
+            if (raw == null) return MARKERS_EMPTY;
+            if (!(raw instanceof List<?>)) return MARKERS_UNKNOWN;
+            List<?> markers = (List<?>) raw;
+            if (markers.isEmpty()) return MARKERS_EMPTY;
+            for (Object marker : markers) {
+                if (!isSuppressedWarningMarker(marker)) return MARKERS_VISIBLE;
+            }
+            return MARKERS_ALL_SUPPRESSED;
+        } catch (Throwable ignored) {
+            return MARKERS_UNKNOWN;
+        }
+    }
+
     /**
-     * Guard BMC FormEditor.saveForm's *save-success* warning dialog before
-     * it opens. FormEditor counts unfiltered infoResource markers, whereas the
-     * Info dialog uses infoContext; these are not necessarily synchronized.
-     * Only omit the dialog when all resource markers are configured WARNINGs.
-     * Any unknown marker type or reflection problem keeps the BMC dialog.
+     * Ordinary BMC FormEditor.saveForm success path: the original resource
+     * and displayed IInfoContext can disagree. Skip only when BOTH sources
+     * are readable and neither has an unsuppressed warning or error. Empty
+     * marker lists count as no warnings to display, not a reason to pop up.
+     */
+    public static boolean shouldShowFormSaveWarnings(Object infoResource, Object infoContext) {
+        if (!isSuppressionActive()) return true;
+        int source = markerState(infoResource,
+                "com.bmc.arsys.studio.commonui.common.info.IInfoResource");
+        int display = markerState(infoContext,
+                "com.bmc.arsys.studio.commonui.common.info.IInfoContext");
+        boolean shouldShow = source == MARKERS_UNKNOWN || display == MARKERS_UNKNOWN
+                || source == MARKERS_VISIBLE || display == MARKERS_VISIBLE;
+        auditSaveGuard("form-success", source, display, shouldShow);
+        return shouldShow;
+    }
+
+    /**
+     * Legacy single-argument guard retained for regression compatibility.
      */
     public static boolean shouldShowFormSaveWarnings(Object infoResource) {
-        if (!isSuppressionActive() || infoResource == null) return true;
+        if (!isSuppressionActive()) return true;
+        int source = markerState(infoResource,
+                "com.bmc.arsys.studio.commonui.common.info.IInfoResource");
+        return source == MARKERS_UNKNOWN || source == MARKERS_EMPTY || source == MARKERS_VISIBLE;
+    }
+
+    /**
+     * FormEditor has a SECOND call with the SAME warning caption inside its
+     * ModelException handler. Crucially BMC sets SAVE_STATE.FAILED in this
+     * branch even when the captured StatusInfo objects are only warnings.
+     * Never hide this dialog: otherwise a failed save could look successful.
+     * Log the branch so we can distinguish it from the ordinary save path.
+     */
+    public static boolean shouldShowFormExceptionWarnings(Object statuses, Object infoContext) {
+        if (isSuppressionActive()) {
+            int original = statusState(statuses);
+            int display = markerState(infoContext,
+                    "com.bmc.arsys.studio.commonui.common.info.IInfoContext");
+            auditSaveGuard("form-model-exception-save-failed", original, display, true);
+        }
+        return true;
+    }
+
+    private static int statusState(Object statuses) {
+        if (!(statuses instanceof List<?>)) return MARKERS_UNKNOWN;
+        List<?> entries = (List<?>) statuses;
+        if (entries.isEmpty()) return MARKERS_EMPTY;
         try {
-            Class<?> contract = findContract(infoResource.getClass(),
-                    "com.bmc.arsys.studio.commonui.common.info.IInfoResource");
-            Class<?> accessor = contract != null ? contract : infoResource.getClass();
-            Object raw = accessor.getMethod("getMarkers").invoke(infoResource);
-            if (!(raw instanceof List<?>)) return true;
-            List<?> markers = (List<?>) raw;
-            if (markers.isEmpty()) return true; // Unknown cause of the warning dialog.
-            for (Object marker : markers) {
-                if (!isSuppressedWarningMarker(marker)) return true;
+            for (Object status : entries) {
+                if (status == null) return MARKERS_VISIBLE;
+                Method getType = status.getClass().getMethod("getMessageType");
+                Method getNumber = status.getClass().getMethod("getMessageNum");
+                Object type = getType.invoke(status);
+                Object number = getNumber.invoke(status);
+                if (!(type instanceof Number) || ((Number) type).intValue() != 1
+                        || !(number instanceof Number)
+                        || !matchesCode(((Number) number).intValue())) return MARKERS_VISIBLE;
             }
-            return false;
+            return MARKERS_ALL_SUPPRESSED;
         } catch (Throwable ignored) {
-            return true; // Fail open: BMC dialog is safer than a hidden error.
+            return MARKERS_UNKNOWN;
+        }
+    }
+
+    /**
+     * Small bounded diagnostic file, recording no object names, credentials or
+     * message text. If a blank dialog remains we can determine which callsite
+     * was active and whether the hook actually executed in Developer Studio.
+     */
+    private static void auditSaveGuard(String path, int original, int visible, boolean show) {
+        try {
+            File root = new File(System.getProperty("user.home", ""), ".yrell-developertools");
+            if (!root.isDirectory()) return;
+            File log = new File(root, "message-suppression-diagnostics.log");
+            if (log.isFile() && log.length() > 262144L) {
+                java.nio.file.Files.deleteIfExists(log.toPath());
+            }
+            String line = java.time.Instant.now().toString() + " 0.1.65 " + path
+                    + " source=" + original + " display=" + visible
+                    + " action=" + (show ? "SHOW" : "SKIP") + System.lineSeparator();
+            java.nio.file.Files.write(log.toPath(), line.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+        } catch (Throwable ignored) {
+            // Diagnostics must never alter save behaviour.
         }
     }
 

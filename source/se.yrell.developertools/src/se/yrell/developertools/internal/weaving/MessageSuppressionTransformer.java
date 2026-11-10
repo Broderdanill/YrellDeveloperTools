@@ -13,8 +13,9 @@ import org.objectweb.asm.Opcodes;
  * Info.showProblems filters the dialog's contents, but FormEditor and
  * DocumentPage decide to OPEN their save-warning dialogs from unfiltered
  * marker/status lists. Hence a completely empty modal dialog could remain.
- * This adds an additional guard to only the "Save successful with warnings."
- * call sites, leaving all save logic, failed-save dialogs and validation intact.
+ * This guards ALL verified "Save successful with warnings." call sites,
+ * including the ModelException branch for safe diagnostics; BMC marks
+ * this branch FAILED, so its warning-caption dialog is never suppressed.
  */
 public final class MessageSuppressionTransformer implements Opcodes {
     public static final String INFO_CLASS = "com/bmc/arsys/studio/commonui/common/info/Info";
@@ -49,7 +50,7 @@ public final class MessageSuppressionTransformer implements Opcodes {
         }
         SaveDialogVisitor visitor = new SaveDialogVisitor(writer, className);
         reader.accept(visitor, ClassReader.EXPAND_FRAMES);
-        int expected = 1; // Only successful form-save path; leave failure paths unchanged.
+        int expected = FORM_EDITOR_CLASS.equals(className) ? 2 : 1; // Two FormEditor save-warning callsites.
         return visitor.patched == expected ? writer.toByteArray() : null;
     }
 
@@ -83,15 +84,29 @@ public final class MessageSuppressionTransformer implements Opcodes {
                     if (opcode == INVOKESTATIC && INFO_CLASS.equals(owner)
                             && "showProblems".equals(method) && SHOW_PROBLEMS_DESC.equals(desc)
                             && saveWarningsCaption
-                            && (!FORM_EDITOR_CLASS.equals(target) || successfulCaptionCount == 1)) {
+                            && (!FORM_EDITOR_CLASS.equals(target) || successfulCaptionCount <= 2)) {
                         // Stack on entry: [IInfoContext, String caption].
                         // Skip just this UI call if the ORIGINAL save warnings are
                         // all suppressed; never change success/failure handling.
-                        if (FORM_EDITOR_CLASS.equals(target)) {
+                        if (FORM_EDITOR_CLASS.equals(target) && successfulCaptionCount == 1) {
+                            // Ordinary save path: compare BOTH the resource markers BMC used
+                            // to request a popup and the markers actually visible in its UI.
                             super.visitVarInsn(ALOAD, 0);
                             super.visitFieldInsn(GETFIELD, FORM_EDITOR_CLASS, "infoResource", "L"+RESOURCE+";");
+                            super.visitVarInsn(ALOAD, 0);
+                            super.visitFieldInsn(GETFIELD, FORM_EDITOR_CLASS, "infoContext", "L"+CONTEXT+";");
                             super.visitMethodInsn(INVOKESTATIC, BRIDGE, "shouldShowFormSaveWarnings",
-                                    "(Ljava/lang/Object;)Z", false);
+                                    "(Ljava/lang/Object;Ljava/lang/Object;)Z", false);
+                        } else if (FORM_EDITOR_CLASS.equals(target)) {
+                            // ModelException can display the exact same warning caption.
+                            // BMC sets SAVE_STATE.FAILED on this path. Instrument for
+                            // diagnostics, but NEVER hide the failure notification.
+                            // Local #18 is BMC's original List<StatusInfo>.
+                            super.visitVarInsn(ALOAD, 18);
+                            super.visitVarInsn(ALOAD, 0);
+                            super.visitFieldInsn(GETFIELD, FORM_EDITOR_CLASS, "infoContext", "L"+CONTEXT+";");
+                            super.visitMethodInsn(INVOKESTATIC, BRIDGE, "shouldShowFormExceptionWarnings",
+                                    "(Ljava/lang/Object;Ljava/lang/Object;)Z", false);
                         } else {
                             // BMC DocumentPage.internalSave stores StatusInfo in local #10.
                             // Local #9 marks a save error: never suppress those dialogs.

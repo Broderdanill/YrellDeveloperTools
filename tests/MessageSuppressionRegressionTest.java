@@ -137,6 +137,21 @@ public class MessageSuppressionRegressionTest {
                     "form save: no original markers fails open");
             ok(MessageSuppressionBridge.shouldShowFormSaveWarnings(null),
                     "form save: unavailable resource fails open");
+            // The TWO save-warning locations in BMC 26.1.1 require distinct guards.
+            Context noMessages = new Context();
+            ok(!MessageSuppressionBridge.shouldShowFormSaveWarnings(onlySuppressedSave, noMessages),
+                    "normal form save skips when suppressed source and empty visible context");
+            ok(!MessageSuppressionBridge.shouldShowFormSaveWarnings(new SaveResource(), noMessages),
+                    "normal form save skips a genuine empty popup");
+            ok(MessageSuppressionBridge.shouldShowFormSaveWarnings(new SaveResource(
+                    new Marker(5033,IInfoMarker.Type.WARNING),
+                    new Marker(5384,IInfoMarker.Type.ERROR)), noMessages),
+                    "normal form save must retain errors even if dialog would be empty");
+            ok(MessageSuppressionBridge.shouldShowFormSaveWarnings(onlySuppressedSave,
+                    new Context(new Marker(7777,IInfoMarker.Type.WARNING))),
+                    "normal form save must retain a visible nonconfigured warning");
+            ok(MessageSuppressionBridge.shouldShowFormSaveWarnings(null,noMessages),
+                    "normal form save with unknown marker source fails open");
             List<FakeStatus> onlyStatusWarnings = Arrays.asList(new FakeStatus(5033,1),new FakeStatus(5384,1));
             ok(!MessageSuppressionBridge.shouldShowDocumentSaveWarnings(onlyStatusWarnings,false),
                     "workflow save: all selected AR WARNING statuses suppress dialog");
@@ -148,6 +163,19 @@ public class MessageSuppressionRegressionTest {
                     "workflow save: other warning visible");
             ok(MessageSuppressionBridge.shouldShowDocumentSaveWarnings(null,false),
                     "workflow save: unknown statuses retain dialog");
+            ok(MessageSuppressionBridge.shouldShowFormExceptionWarnings(onlyStatusWarnings,noMessages),
+                    "second FormEditor save-warning path is a FAILED save and must keep popup");
+            ok(MessageSuppressionBridge.shouldShowFormExceptionWarnings(
+                    Arrays.asList(new FakeStatus(5384,2)),noMessages),
+                    "second FormEditor save-warning path: ERROR status always opens popup");
+            ok(MessageSuppressionBridge.shouldShowFormExceptionWarnings(
+                    Arrays.asList(new FakeStatus(7777,1)),noMessages),
+                    "second FormEditor save-warning path: nonconfigured warning opens popup");
+            ok(MessageSuppressionBridge.shouldShowFormExceptionWarnings(onlyStatusWarnings,
+                    new Context(new Marker(7777,IInfoMarker.Type.WARNING))),
+                    "second FormEditor save-warning path: remaining context warning opens popup");
+            ok(MessageSuppressionBridge.shouldShowFormExceptionWarnings(null,noMessages),
+                    "second FormEditor save-warning path: unknown status list fails open");
 
             Context only = new Context(new Marker(5033,IInfoMarker.Type.WARNING),
                                        new Marker(5384,IInfoMarker.Type.WARNING));
@@ -210,6 +238,7 @@ public class MessageSuppressionRegressionTest {
                 final int[] guards = new int[1];
                 final int[] showCalls = new int[1];
                 final int[] unsuppressedFailed = new int[1];
+                final int[] catchGuards = new int[1];
                 new ClassReader(transformedTarget).accept(new ClassVisitor(Opcodes.ASM9) {
                     @Override public MethodVisitor visitMethod(int access,String name,String descriptor,
                                                                   String signature,String[] exceptions) {
@@ -218,6 +247,8 @@ public class MessageSuppressionRegressionTest {
                             public void visitMethodInsn(int opcode,String owner,String method,String desc,boolean itf) {
                                 if (saveMethod && owner.equals("se/yrell/developertools/runtime/MessageSuppressionBridge")
                                         && method.startsWith("shouldShow")) guards[0]++;
+                                if (saveMethod && owner.equals("se/yrell/developertools/runtime/MessageSuppressionBridge")
+                                        && method.equals("shouldShowFormExceptionWarnings")) catchGuards[0]++;
                                 if (saveMethod && owner.equals(MessageSuppressionTransformer.INFO_CLASS)
                                         && method.equals("showProblems")) showCalls[0]++;
                                 super.visitMethodInsn(opcode,owner,method,desc,itf);
@@ -229,11 +260,13 @@ public class MessageSuppressionRegressionTest {
                         };
                     }
                 },0);
-                ok(guards[0] == 1, "exactly one successful-save guard: " + target);
+                ok(guards[0] == (target.equals(MessageSuppressionTransformer.FORM_EDITOR_CLASS) ? 2 : 1),
+                        "both FormEditor warning calls and the DocumentPage warning call guarded: " + target);
                 ok(showCalls[0] == (target.equals(MessageSuppressionTransformer.FORM_EDITOR_CLASS) ? 3 : 2),
                         "original BMC dialog calls retained: " + target);
                 if (target.equals(MessageSuppressionTransformer.FORM_EDITOR_CLASS)) {
                     ok(unsuppressedFailed[0] == 1, "form save-failed branch preserved");
+                    ok(catchGuards[0] == 1, "the previously missed warning-only ModelException call is guarded");
                 }
             }
             ok(!MessageSuppressionTransformer.supports("org/eclipse/other/Class"),
