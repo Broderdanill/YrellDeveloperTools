@@ -67,6 +67,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
     private static final String FEATURE_OBJECT_SORTING = "objectSorting";
     private static final String FEATURE_MIDTIER_CACHE = "midTierCache";
     private static final String FEATURE_KEEPALIVE = "keepalive";
+    private static final String FEATURE_MESSAGE_SUPPRESSION = "messageSuppression";
     private static final String FEATURE_INSIGHT = "insight";
     private static final String FEATURE_VIEW_ACTIONS = "viewActions";
     private static final String FEATURE_OBJECT_LIST_SEARCH = "objectListSearch";
@@ -94,6 +95,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
     private String objectSortDirection;
     private boolean midTierCacheEnabled;
     private final List<MidTierConfiguration.Mapping> midTierMappings = new ArrayList<>();
+    private boolean messageSuppressionEnabled;
+    private String messageSuppressionCodes;
     private boolean keepAliveEnabled;
     private String keepAliveInterval;
     private boolean insightEnabled;
@@ -271,6 +274,12 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
 
         if (FEATURE_SUFFIX.equals(featureId)) {
             addInfo(detailHost, "Cleans BMC's automatic __c suffix on proposed new object and field names. Existing saved objects are not mass-renamed and there is no post-save cleanup.");
+        } else if (FEATURE_MESSAGE_SUPPRESSION.equals(featureId)) {
+            addTextSetting(detailHost, "Suppress warning codes", messageSuppressionCodes, new ValueSetter() {
+                public void set(String value) { messageSuppressionCodes = value; }
+            });
+            addInfo(detailHost, "Comma-separated BMC codes (default 5033,5384). Only messages with severity WARNING are hidden. Errors, fatal errors and save failures are never suppressed.");
+            addImportant(detailHost, "Warning popups and the Problems dialog are affected; BMC's validation and AR save result are not modified. Restart Developer Studio with -clean after installation.");
         } else if (FEATURE_TABLE_NAMES.equals(featureId)) {
             addTextSetting(detailHost, "Table column database-name pattern", tableColumnPattern, new ValueSetter() {
                 public void set(String value) { tableColumnPattern = value; }
@@ -523,6 +532,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
 
     @Override
     protected void performDefaults() {
+        messageSuppressionEnabled = ToolsConstants.DEFAULT_MESSAGE_SUPPRESSION_ENABLED;
+        messageSuppressionCodes = ToolsConstants.DEFAULT_MESSAGE_SUPPRESSION_CODES;
         suffixEnabled = ToolsConstants.DEFAULT_REMOVE_CUSTOM_SUFFIX_ENABLED;
         tableNamesEnabled = ToolsConstants.DEFAULT_DEFAULT_NAMES_TABLE_COLUMN_DB_NAME_ENABLED;
         tableColumnPattern = ToolsConstants.DEFAULT_DEFAULT_NAMES_TABLE_COLUMN_DB_NAME_PATTERN;
@@ -556,6 +567,12 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         } catch (IllegalArgumentException e) {
             MessageDialog.openError(getShell(), "Yrell Developer Tools", "Invalid MidTier mapping: " + e.getMessage());
             selectFeature(FEATURE_MIDTIER_CACHE);
+            return false;
+        }
+        if (messageSuppressionEnabled && !se.yrell.developertools.runtime.MessageSuppressionBridge.isValidCodeList(messageSuppressionCodes)) {
+            MessageDialog.openError(getShell(), "Yrell Developer Tools",
+                    "Message Suppressor codes must be comma-separated integers, e.g. 5033,5384.");
+            selectFeature(FEATURE_MESSAGE_SUPPRESSION);
             return false;
         }
         if (midTierCacheEnabled && midTierMappings.isEmpty()) {
@@ -634,6 +651,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
             store.setValue(ToolsConstants.PREF_OBJECT_SORT_ENABLED, objectSortingEnabled);
             store.setValue(ToolsConstants.PREF_OBJECT_SORT_COLUMN, objectSortColumn);
             store.setValue(ToolsConstants.PREF_OBJECT_SORT_DIRECTION, objectSortDirection);
+            store.setValue(ToolsConstants.PREF_MESSAGE_SUPPRESSION_ENABLED, messageSuppressionEnabled);
+            store.setValue(ToolsConstants.PREF_MESSAGE_SUPPRESSION_CODES, messageSuppressionCodes.trim());
             store.setValue(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, midTierCacheEnabled);
             store.setValue(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, MidTierConfiguration.encode(midTierMappings));
             store.setValue(ToolsConstants.PREF_KEEPALIVE_ENABLED, keepAliveEnabled);
@@ -659,6 +678,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         node.putBoolean(ToolsConstants.PREF_OBJECT_SORT_ENABLED, objectSortingEnabled);
         node.put(ToolsConstants.PREF_OBJECT_SORT_COLUMN, objectSortColumn);
         node.put(ToolsConstants.PREF_OBJECT_SORT_DIRECTION, objectSortDirection);
+        node.putBoolean(ToolsConstants.PREF_MESSAGE_SUPPRESSION_ENABLED, messageSuppressionEnabled);
+        node.put(ToolsConstants.PREF_MESSAGE_SUPPRESSION_CODES, messageSuppressionCodes.trim());
         node.putBoolean(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, midTierCacheEnabled);
         node.put(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, MidTierConfiguration.encode(midTierMappings));
         node.putBoolean(ToolsConstants.PREF_KEEPALIVE_ENABLED, keepAliveEnabled);
@@ -675,6 +696,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
     }
 
     private void postSaveActions() {
+        ToolsPreferences.writeMessageSuppressionProperties(messageSuppressionEnabled, messageSuppressionCodes);
         KeepAliveService.getInstance().reconfigure();
         ToolsPreferences.writeFastFormsAgentProperties(fastObjectsEnabled,
                 trimOrDefault(fastObjectValues, ToolsConstants.DEFAULT_FAST_FORMS_VALUES), fastObjectDebug);
@@ -703,6 +725,10 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         objectSortingEnabled = getBoolean(store, ToolsConstants.PREF_OBJECT_SORT_ENABLED, ToolsConstants.DEFAULT_OBJECT_SORT_ENABLED);
         objectSortColumn = getString(store, ToolsConstants.PREF_OBJECT_SORT_COLUMN, ToolsConstants.DEFAULT_OBJECT_SORT_COLUMN);
         objectSortDirection = getString(store, ToolsConstants.PREF_OBJECT_SORT_DIRECTION, ToolsConstants.DEFAULT_OBJECT_SORT_DIRECTION);
+        messageSuppressionEnabled = getBoolean(store, ToolsConstants.PREF_MESSAGE_SUPPRESSION_ENABLED,
+                ToolsConstants.DEFAULT_MESSAGE_SUPPRESSION_ENABLED);
+        messageSuppressionCodes = getString(store, ToolsConstants.PREF_MESSAGE_SUPPRESSION_CODES,
+                ToolsConstants.DEFAULT_MESSAGE_SUPPRESSION_CODES);
         midTierCacheEnabled = getBoolean(store, ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED);
         midTierMappings.clear();
         midTierMappings.addAll(MidTierConfiguration.decode(getString(store, ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, "")));
@@ -777,6 +803,9 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         features.put(FEATURE_OBJECT_SORTING, new Feature(FEATURE_OBJECT_SORTING, "Default object sorting",
                 "Uses one default sort rule for all supported object lists and object pickers.",
                 "Restart Developer Studio with -clean after installation. Existing lists may need to be reopened."));
+        features.put(FEATURE_MESSAGE_SUPPRESSION, new Feature(FEATURE_MESSAGE_SUPPRESSION, "Message Suppressor",
+                "Hides selected warning codes during save, without suppressing errors or affecting validation.",
+                "Restart Developer Studio with -clean after installing 0.1.62. Editing code list takes effect immediately."));
         features.put(FEATURE_MIDTIER_CACHE, new Feature(FEATURE_MIDTIER_CACHE, "MidTier Cache Flush",
                 "Flush MidTier cache for the current form or workflow, a complete instance, or all pods.",
                 "No restart required for settings. Reopen an editor if the toolbar visibility does not update immediately."));
@@ -804,6 +833,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         if (FEATURE_PWA_ICONS.equals(id)) return pwaIconsEnabled;
         if (FEATURE_FAST_OBJECTS.equals(id)) return fastObjectsEnabled;
         if (FEATURE_OBJECT_SORTING.equals(id)) return objectSortingEnabled;
+        if (FEATURE_MESSAGE_SUPPRESSION.equals(id)) return messageSuppressionEnabled;
         if (FEATURE_MIDTIER_CACHE.equals(id)) return midTierCacheEnabled;
         if (FEATURE_KEEPALIVE.equals(id)) return keepAliveEnabled;
         if (FEATURE_INSIGHT.equals(id)) return insightEnabled;
@@ -820,6 +850,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         else if (FEATURE_PWA_ICONS.equals(id)) pwaIconsEnabled = enabled;
         else if (FEATURE_FAST_OBJECTS.equals(id)) fastObjectsEnabled = enabled;
         else if (FEATURE_OBJECT_SORTING.equals(id)) objectSortingEnabled = enabled;
+        else if (FEATURE_MESSAGE_SUPPRESSION.equals(id)) messageSuppressionEnabled = enabled;
         else if (FEATURE_MIDTIER_CACHE.equals(id)) midTierCacheEnabled = enabled;
         else if (FEATURE_KEEPALIVE.equals(id)) keepAliveEnabled = enabled;
         else if (FEATURE_INSIGHT.equals(id)) insightEnabled = enabled;

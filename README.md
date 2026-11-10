@@ -1,3 +1,19 @@
+# Yrell Developer Tools 0.1.62 — Message Suppressor
+
+New optional **Message Suppressor** in **Window > Preferences > Yrell Developer Tools**.
+Tick its entry to enable, then edit **Suppress warning codes** (default: `5033,5384`).
+The preference controls **warning presentation only**, not AR validation, server requests,
+server-side logs, save failures, or error severity. The module is **off by default**.
+
+- BMC `Info.open(int severity, int code, String text)` uses the exact numeric code, and suppresses it **only** if severity is WARNING (2).
+- BMC `Info.showProblems(IInfoContext, String)` hides selected WARNING markers in the presentation of that dialog. If all markers are hidden it does not open the dialog; with mixed markers it shows only the remaining messages. No source markers are deleted.
+- 5033 is a BMC warning about missing field labels. 5384 is documented as ARERR *The alarm cannot be saved*; errors with that number **must remain visible**, even though 5384 is in the configured list.
+- The optional Java agent hooks the early-loaded BMC Info class. The Equinox weaving path is the fallback when no `-javaagent` is present and BMC Info was not already loaded. A single `-clean` restart after installation is recommended.
+- The module uses `~/.yrell-developertools/message-suppression.properties` for the early Java agent (only an enable flag and code list); it is rewritten from the plugin's Preferences on startup and on Apply/OK. It contains no credentials.
+- Other warnings, errors, warnings without numeric code, or alternate BMC dialogs that bypass these two entry points are not affected.
+
+**Integration-test limit:** Unit and bytecode tests pass against the BMC Developer Studio 26.1.1 Info class, and startup with `-javaagent` is tested. Actual Windows UI save dialogs still need live verification.
+
 ## 0.1.61 — Optional MidTier hotkey retired
 
 The configurable keyboard shortcut was removed because its Eclipse binding
@@ -19,14 +35,14 @@ Right-click a saved form under Object List → Forms to preview and confirm rena
 - **Clearer icon:** a new hand-drawn, high-contrast toilet silhouette is supplied as 16/24/32 px PNG; `source/se.yrell.developertools/icons/toilet.svg` is the editable source. Tooltip remains “Flush MidTier cache ...”.
 - This release has been compiled and regression-tested against Developer Studio 26.1.1; the **actual Windows BMC UI requires live verification**.
 
-# Yrell Developer Tools 0.1.61 — BMC Developer Studio 26.1.1
+# Yrell Developer Tools 0.1.62 — BMC Developer Studio 26.1.1
 
 Complete Eclipse plugin source, installable JAR, Java 17 build scripts and regression tests. Preserves 0.1.49 robustness fixes and 0.1.50's MidTier toolbar/preferences.
 
 ## Package
 
-- `source/se.yrell.developertools/`: all 65 Java source files, plugin XML, OSGi manifest and icons.
-- `install/se.yrell.developertools_0.1.61.jar`: Windows Developer Studio plugin/optional Fast object lists Java agent.
+- `source/se.yrell.developertools/`: all 67 Java source files, plugin XML, OSGi manifest and icons.
+- `install/se.yrell.developertools_0.1.62.jar`: Windows Developer Studio plugin/optional Fast object lists Java agent.
 - `scripts/build.sh` and `scripts/test.sh`: Java 17 compilation and tests.
 - `tests/`: Java regression tests including an embedded mock MidTier HTTP server.
 - `CHANGELOG.md` / `TEST-RESULTS.txt`.
@@ -41,7 +57,7 @@ After installing this release into `~/Git/YrellDeveloperTools`, use the previous
 cd ~/Git/YrellDeveloperTools
 ./scripts/build.sh "$PWD/.build/devstudio/x64"
 ./scripts/test.sh "$PWD/.build/devstudio/x64"
-cp -v install/se.yrell.developertools_0.1.61.jar ~/Downloads/
+cp -v install/se.yrell.developertools_0.1.62.jar ~/Downloads/
 ```
 
 If the `.build` cache has been removed, use the original ZIP once:
@@ -56,11 +72,11 @@ Build requirements: Java JDK 17+, `unzip`. The build targets BMC Developer Studi
 
 1. Exit Developer Studio. Back up `x64/devstudio.ini` and the previous plugin JAR.
 2. Delete/relocate previous `se.yrell.developertools_*.jar` files from `x64/plugins`.
-3. Copy `se.yrell.developertools_0.1.61.jar` into `x64/plugins`.
+3. Copy `se.yrell.developertools_0.1.62.jar` into `x64/plugins`.
 4. If Fast object lists uses `-javaagent`, adjust the existing agent argument **after** the `-vmargs` line in `x64/devstudio.ini`:
 
    ```ini
-   -javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.61.jar
+   -javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.62.jar
    ```
 
 5. Restart with `-clean` once. Do not add a second `-vmargs` line.

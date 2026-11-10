@@ -13,13 +13,13 @@ elif [[ -d "$STUDIO/x64/plugins" ]]; then
 elif [[ -d "$STUDIO/plugins" ]]; then
   STUDIO="$STUDIO/plugins"
 fi
-JAR="$ROOT/install/se.yrell.developertools_0.1.61.jar"
+JAR="$ROOT/install/se.yrell.developertools_0.1.62.jar"
 if [[ ! -f "$JAR" ]]; then echo "Build JAR first: $JAR" >&2; exit 2; fi
 mkdir -p "$ROOT/.build/tests"
 CLASSPATH=$(find "$STUDIO" -type f -name '*.jar' | sort | paste -sd: -)
 CP="$JAR:$ROOT/.build/tests:$CLASSPATH"
 if ! javac -proc:none --release 17 -encoding UTF-8 -cp "$CP" -d "$ROOT/.build/tests" "$ROOT/tests/"*.java; then exit 1; fi
-for test in AutoFieldIdRegressionTest DefaultNamingRegressionTest FastFormsStateRegressionTest TransformAudit MidTierCacheRegressionTest MidTierSsoRegressionTest MidTierConfigAuthorizationRegressionTest MidTierCommandRegressionTest MidTierObjectListRegressionTest ObjectListSortingRegressionTest ManualSuffixCleanupRegressionTest; do
+for test in AutoFieldIdRegressionTest DefaultNamingRegressionTest FastFormsStateRegressionTest TransformAudit MidTierCacheRegressionTest MidTierSsoRegressionTest MidTierConfigAuthorizationRegressionTest MidTierCommandRegressionTest MidTierObjectListRegressionTest ObjectListSortingRegressionTest ManualSuffixCleanupRegressionTest MessageSuppressionRegressionTest; do
   echo "== $test =="
   if [[ "$test" == "MidTierCacheRegressionTest" ]]; then
     java -cp "$CP" "$test" || exit 1
@@ -41,6 +41,8 @@ fi
 # that the Agent-Class metadata happens to exist.
 echo '== agent bootstrap =='
 java -javaagent:"$JAR" -Dbmc.ds.fastForms.enabled=false -cp "$CP" FastFormsStateRegressionTest || exit 1
+echo '== early agent message hook =='
+java -javaagent:"$JAR" -Dbmc.ds.fastForms.enabled=false -Dyrell.verifyAgentInfoHook=true -cp "$CP" MessageSuppressionRegressionTest || exit 1
 if ! javap -classpath "$JAR" -verbose se.yrell.developertools.ToolsActivator | grep -q 'major version: 61'; then
   echo 'Wrong Java bytecode version (expected Java 17 / major 61).' >&2
   exit 1

@@ -177,6 +177,51 @@ public final class ToolsPreferences {
         }
     }
 
+    public static boolean isMessageSuppressionEnabled() {
+        return node().getBoolean(ToolsConstants.PREF_MESSAGE_SUPPRESSION_ENABLED,
+                ToolsConstants.DEFAULT_MESSAGE_SUPPRESSION_ENABLED);
+    }
+
+    public static String getMessageSuppressionCodes() {
+        return node().get(ToolsConstants.PREF_MESSAGE_SUPPRESSION_CODES,
+                ToolsConstants.DEFAULT_MESSAGE_SUPPRESSION_CODES);
+    }
+
+    public static File messageSuppressionAgentPropertiesFile() {
+        String home = System.getProperty("user.home", "").trim();
+        return home.isEmpty() ? null : new File(new File(home, ".yrell-developertools"),
+                "message-suppression.properties");
+    }
+
+    /** Share UI preferences with the optional early Java agent; never stores credentials. */
+    public static void writeMessageSuppressionProperties(boolean enabled, String codes) {
+        File target = messageSuppressionAgentPropertiesFile();
+        if (target == null) return;
+        try {
+            java.nio.file.Path path = target.toPath();
+            java.nio.file.Files.createDirectories(path.getParent());
+            java.util.Properties values = new java.util.Properties();
+            values.setProperty("enabled", Boolean.toString(enabled));
+            values.setProperty("codes", codes == null ? "" : codes.trim());
+            java.nio.file.Path temp = java.nio.file.Files.createTempFile(path.getParent(), "suppression-", ".tmp");
+            try {
+                try (java.io.OutputStream stream = java.nio.file.Files.newOutputStream(temp)) {
+                    values.store(stream, "Yrell Developer Tools - UI warning suppression only");
+                }
+                try {
+                    java.nio.file.Files.move(temp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                            java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+                } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
+                    java.nio.file.Files.move(temp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            } finally {
+                java.nio.file.Files.deleteIfExists(temp);
+            }
+        } catch (Throwable failure) {
+            Log.warn("Could not write Message Suppression settings: " + failure.getMessage());
+        }
+    }
+
     public static boolean isMidTierCacheEnabled() {
         return node().getBoolean(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED);
     }

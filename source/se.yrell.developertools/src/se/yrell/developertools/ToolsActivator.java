@@ -20,6 +20,8 @@ public class ToolsActivator extends AbstractUIPlugin {
         startOptionalBundle("com.sun.jna");
         startOptionalBundle("com.sun.jna.platform");
         registerWeavingHook(context);
+        ToolsPreferences.writeMessageSuppressionProperties(
+                ToolsPreferences.isMessageSuppressionEnabled(), ToolsPreferences.getMessageSuppressionCodes());
     }
 
     @Override

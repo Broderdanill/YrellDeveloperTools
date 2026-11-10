@@ -1,23 +1,23 @@
-Yrell Developer Tools 0.1.61 — test report (2026-11-10)
-Target: Java 17, BMC Developer Studio 26.1.1 build001 (supplied BMC binary JARs)
-
-Compiled: 65 Java source files (Java 17 bytecode)
-Regression tests: ALL PASSED
+Yrell Developer Tools 0.1.62 — test report (2026-11-10)
+Target: Java 17; BMC Developer Studio 26.1.1 build001 (locally supplied dependency JARs)
+Compiled: 67 Java source files. All automated tests passed.
 
 - AutoFieldIdRegressionTest: 5 PASS
 - DefaultNamingRegressionTest: 14 PASS
 - FastFormsStateRegressionTest: 6 PASS
-- TransformAudit: existing weaving and Java-agent targets matched
+- TransformAudit: preexisting weaving and Java-agent targets match BMC bytecode
 - MidTierCacheRegressionTest: 37 PASS
 - MidTierSsoRegressionTest: 13 PASS
 - MidTierConfigAuthorizationRegressionTest: 21 PASS
 - MidTierCommandRegressionTest: 12 PASS
-- MidTierObjectListRegressionTest: 13 PASS (BMC menu retained, hotkey UI removed, targeted legacy USER-binding cleanup)
+- MidTierObjectListRegressionTest: 13 PASS
 - ObjectListSortingRegressionTest: 13 PASS
 - ManualSuffixCleanupRegressionTest: 36 PASS
+- MessageSuppressionRegressionTest: 27 PASS
 - MidTierBrowserDomRegressionTest: 60 PASS
-- Java agent bootstrap: PASS
+- Agent bootstrap: PASS
+- MessageSuppressor agent early Info-hook integration: 28 PASS
 
-Limits: No live Windows integration test of Eclipse binding cleanup; cleanup is best effort,
-and cannot interfere with other installed keyboard bindings. BMC Object List,
-MidTier and `__c` operations have been regression tested but require normal live testing.
+Message suppression tests verify that 5033 and 5384 are suppressed ONLY when BMC reports
+WARNING; ERROR 5384 is preserved, other codes remain visible, marker sources do not
+mutate, and mixed Problems dialogs retain their errors. Actual Windows UI testing remains.

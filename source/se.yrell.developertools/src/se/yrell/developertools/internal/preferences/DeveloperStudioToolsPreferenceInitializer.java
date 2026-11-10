@@ -36,6 +36,8 @@ public class DeveloperStudioToolsPreferenceInitializer extends AbstractPreferenc
         store.setDefault(ToolsConstants.PREF_OBJECT_SORT_COLUMN, ToolsConstants.DEFAULT_OBJECT_SORT_COLUMN);
         store.setDefault(ToolsConstants.PREF_OBJECT_SORT_DIRECTION, ToolsConstants.DEFAULT_OBJECT_SORT_DIRECTION);
 
+        store.setDefault(ToolsConstants.PREF_MESSAGE_SUPPRESSION_ENABLED, ToolsConstants.DEFAULT_MESSAGE_SUPPRESSION_ENABLED);
+        store.setDefault(ToolsConstants.PREF_MESSAGE_SUPPRESSION_CODES, ToolsConstants.DEFAULT_MESSAGE_SUPPRESSION_CODES);
         store.setDefault(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED);
         store.setDefault(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, "");
 

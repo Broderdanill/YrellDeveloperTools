@@ -1,3 +1,14 @@
+## 0.1.62 — Message Suppressor (2026-11-10)
+
+- Added optional **Message Suppressor** to Yrell Developer Tools Preferences.
+- Default code list: **5033,5384**; disabled by default until explicitly enabled.
+- Hooks the verified BMC `Info.open(int,int,String)` and `Info.showProblems(IInfoContext,String)` presentation methods; filters numeric code only when its BMC severity is **WARNING**, never ERROR/FATAL/INFO.
+- Suppressed warnings are removed only from the UI view. Validation, AR save operations, the real model, and failures are not altered.
+- BMC's 5033 is a warning for a missing field label; 5384 is documented as an ARERR for failure to save an alarm and remains visible in that case.
+- Supports both early `-javaagent` injection and fallback Equinox weaving; code list changes take effect without reweaving, via an atomically written local preference file.
+- Regression tests use the real 26.1.1 BMC Info bytecode and verify filter/agent injection, mixed-warning presentation, error preservation and default-disabled behaviour.
+- **Requires Windows integration testing** to confirm the actual save-warning path. Alternative BMC dialogs beyond the two verified methods are deliberately not instrumented.
+
 ## 0.1.61 (2026-11-10)
 
 - Removed the optional MidTier hotkey feature in response to Developer Studio

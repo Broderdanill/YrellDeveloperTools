@@ -87,6 +87,8 @@ public final class FastFormsAgent {
                 addBootstrapClass(out, "se/yrell/developertools/fastagent/FastFormsBridge$NameListCacheEntry.class");
                 addBootstrapClass(out, "se/yrell/developertools/fastagent/FastFormsBridge$1.class");
                 addBootstrapClass(out, "se/yrell/developertools/fastagent/FastFormsBridge$2.class");
+                addBootstrapClass(out, "se/yrell/developertools/runtime/MessageSuppressionBridge.class");
+                addBootstrapClass(out, "se/yrell/developertools/runtime/MessageSuppressionBridge$FilterContextHandler.class");
             } finally {
                 out.close();
                 try { in.close(); } catch (Throwable ignored) {}
@@ -125,6 +127,20 @@ public final class FastFormsAgent {
         @Override
         public byte[] transform(Module module, ClassLoader loader, String className, Class<?> classBeingRedefined,
                                 ProtectionDomain protectionDomain, byte[] classfileBuffer) {
+            if ("com/bmc/arsys/studio/commonui/common/info/Info".equals(className)) {
+                try {
+                    byte[] output = se.yrell.developertools.internal.weaving.MessageSuppressionTransformer.transform(
+                            className, classfileBuffer);
+                    if (output != null) {
+                        System.setProperty("se.yrell.developertools.messageSuppressionAgent.active", "true");
+                        FastFormsBridge.logAlways("Message Suppressor: BMC Info UI class hooked");
+                    }
+                    return output;
+                } catch (Throwable failure) {
+                    FastFormsBridge.logAlways("Message Suppressor: could not hook Info: " + failure);
+                    return null;
+                }
+            }
             if (!shouldTransform(className)) return null;
             try {
                 ClassReader cr = new ClassReader(classfileBuffer);
