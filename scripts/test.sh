@@ -13,7 +13,7 @@ elif [[ -d "$STUDIO/x64/plugins" ]]; then
 elif [[ -d "$STUDIO/plugins" ]]; then
   STUDIO="$STUDIO/plugins"
 fi
-JAR="$ROOT/install/se.yrell.developertools_0.1.62.jar"
+JAR="$ROOT/install/se.yrell.developertools_0.1.63.jar"
 if [[ ! -f "$JAR" ]]; then echo "Build JAR first: $JAR" >&2; exit 2; fi
 mkdir -p "$ROOT/.build/tests"
 CLASSPATH=$(find "$STUDIO" -type f -name '*.jar' | sort | paste -sd: -)

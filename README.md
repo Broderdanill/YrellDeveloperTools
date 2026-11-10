@@ -1,3 +1,21 @@
+# Yrell Developer Tools 0.1.63 — Message Suppressor: empty-dialog fix
+
+This maintenance release fixes an issue in 0.1.62 where suppressed warnings vanished
+but the BMC Problems dialog still appeared with an **OK** button.
+
+BMC Developer Studio 26.1.1 `InfoContext.getMarkers()` can return `null`
+when the message context is empty. The previous suppressor skipped the modal
+only for a non-empty list of warnings that became empty after filtering;
+`null` and already-empty lists still opened an empty modal. With Message Suppressor
+enabled and a valid configured code list, those zero-message dialogs are now
+skipped at `Info.showProblems(...)` before the UI is created. When the feature
+is disabled, the original BMC behavior is retained. All remaining WARNING,
+ERROR and FATAL messages use the existing behavior, and the underlying marker
+model and AR save operations are not changed.
+
+Default suppressed WARNING codes remain `5033,5384`. Warning-only suppression
+is unchanged. Run the build/test scripts as documented below.
+
 # Yrell Developer Tools 0.1.62 — Message Suppressor
 
 New optional **Message Suppressor** in **Window > Preferences > Yrell Developer Tools**.
@@ -42,7 +60,7 @@ Complete Eclipse plugin source, installable JAR, Java 17 build scripts and regre
 ## Package
 
 - `source/se.yrell.developertools/`: all 67 Java source files, plugin XML, OSGi manifest and icons.
-- `install/se.yrell.developertools_0.1.62.jar`: Windows Developer Studio plugin/optional Fast object lists Java agent.
+- `install/se.yrell.developertools_0.1.63.jar`: Windows Developer Studio plugin/optional Fast object lists Java agent.
 - `scripts/build.sh` and `scripts/test.sh`: Java 17 compilation and tests.
 - `tests/`: Java regression tests including an embedded mock MidTier HTTP server.
 - `CHANGELOG.md` / `TEST-RESULTS.txt`.
@@ -57,7 +75,7 @@ After installing this release into `~/Git/YrellDeveloperTools`, use the previous
 cd ~/Git/YrellDeveloperTools
 ./scripts/build.sh "$PWD/.build/devstudio/x64"
 ./scripts/test.sh "$PWD/.build/devstudio/x64"
-cp -v install/se.yrell.developertools_0.1.62.jar ~/Downloads/
+cp -v install/se.yrell.developertools_0.1.63.jar ~/Downloads/
 ```
 
 If the `.build` cache has been removed, use the original ZIP once:
@@ -72,11 +90,11 @@ Build requirements: Java JDK 17+, `unzip`. The build targets BMC Developer Studi
 
 1. Exit Developer Studio. Back up `x64/devstudio.ini` and the previous plugin JAR.
 2. Delete/relocate previous `se.yrell.developertools_*.jar` files from `x64/plugins`.
-3. Copy `se.yrell.developertools_0.1.62.jar` into `x64/plugins`.
+3. Copy `se.yrell.developertools_0.1.63.jar` into `x64/plugins`.
 4. If Fast object lists uses `-javaagent`, adjust the existing agent argument **after** the `-vmargs` line in `x64/devstudio.ini`:
 
    ```ini
-   -javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.62.jar
+   -javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.63.jar
    ```
 
 5. Restart with `-clean` once. Do not add a second `-vmargs` line.

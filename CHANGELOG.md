@@ -1,3 +1,11 @@
+## 0.1.63 — Suppressed warnings no longer leave an empty OK dialog (2026-11-10)
+
+- Fix an observed issue with BMC's `InfoContext.getMarkers()`: it may return `null` rather than an empty list when all messages have been removed/none are available.
+- When Message Suppressor is enabled and the suppression list is valid, skip BMC's `Info.showProblems(...)` dialog for both `null` and empty marker collections.
+- Keep BMC's original dialog behavior while suppression is disabled or configuration is invalid/unavailable.
+- Preserve all unfiltered warnings, errors, and fatal messages; no AR save result or original marker list is changed.
+- Add regression tests for real BMC 26.1.1 `InfoContext` and null/empty marker contexts; all other plugin modules remain unchanged.
+
 ## 0.1.62 — Message Suppressor (2026-11-10)
 
 - Added optional **Message Suppressor** to Yrell Developer Tools Preferences.

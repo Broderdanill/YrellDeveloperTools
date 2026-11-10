@@ -1,11 +1,11 @@
-Yrell Developer Tools 0.1.62 — test report (2026-11-10)
-Target: Java 17; BMC Developer Studio 26.1.1 build001 (locally supplied dependency JARs)
+Yrell Developer Tools 0.1.63 — test report (2026-11-10)
+Target: Java 17 bytecode; BMC Developer Studio 26.1.1 build001 (supplied dependency JARs)
 Compiled: 67 Java source files. All automated tests passed.
 
 - AutoFieldIdRegressionTest: 5 PASS
 - DefaultNamingRegressionTest: 14 PASS
 - FastFormsStateRegressionTest: 6 PASS
-- TransformAudit: preexisting weaving and Java-agent targets match BMC bytecode
+- TransformAudit: BMC 26.1.1 weaving and agent targets MATCH
 - MidTierCacheRegressionTest: 37 PASS
 - MidTierSsoRegressionTest: 13 PASS
 - MidTierConfigAuthorizationRegressionTest: 21 PASS
@@ -13,11 +13,17 @@ Compiled: 67 Java source files. All automated tests passed.
 - MidTierObjectListRegressionTest: 13 PASS
 - ObjectListSortingRegressionTest: 13 PASS
 - ManualSuffixCleanupRegressionTest: 36 PASS
-- MessageSuppressionRegressionTest: 27 PASS
+- MessageSuppressionRegressionTest: 34 PASS
 - MidTierBrowserDomRegressionTest: 60 PASS
 - Agent bootstrap: PASS
-- MessageSuppressor agent early Info-hook integration: 28 PASS
+- Message Suppressor early Info-hook integration: 35 PASS
 
-Message suppression tests verify that 5033 and 5384 are suppressed ONLY when BMC reports
-WARNING; ERROR 5384 is preserved, other codes remain visible, marker sources do not
-mutate, and mixed Problems dialogs retain their errors. Actual Windows UI testing remains.
+The seven new Message Suppressor assertions include empty and null message
+collections, disabled and invalid settings, invocation through public BMC
+interfaces when concrete implementations are non-public, and real BMC
+InfoContext.getMarkers() returning null. Existing warning-only protection
+and preservation of errors are retained.
+
+Integration limit: actual Windows Developer Studio save dialogs still require
+confirmation on the target system. The patch targets BMC Info.showProblems;
+other undocumented dialog pathways are not modified.

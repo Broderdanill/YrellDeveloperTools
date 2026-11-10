@@ -65,6 +65,29 @@ public final class MessageSuppressionBridge {
     }
 
     /**
+     * Whether the UI suppressor is enabled and has a valid configured code list.
+     * Used only for *empty* Problems dialogs. If config is unavailable, BMC's
+     * normal dialog handling is preserved (fail open).
+     */
+    private static boolean isSuppressionActive() {
+        try {
+            String home = System.getProperty("user.home", "");
+            if (home.trim().isEmpty()) return false;
+            File file = new File(new File(home, ".yrell-developertools"),
+                    "message-suppression.properties");
+            if (!file.isFile()) return false;
+            Properties p = new Properties();
+            try (FileInputStream in = new FileInputStream(file)) {
+                p.load(in);
+            }
+            return Boolean.parseBoolean(p.getProperty("enabled", "false"))
+                    && isValidCodeList(p.getProperty("codes", ""));
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
      * Called only when BMC is about to show its Problems dialog. Returns null
      * if every marker is an explicitly ignored WARNING; otherwise returns a
      * filtered view of the context, preserving all errors, infos and other warnings.
@@ -73,16 +96,24 @@ public final class MessageSuppressionBridge {
     public static Object filterProblemsContext(Object context) {
         if (context == null) return null;
         try {
-            Method getter = context.getClass().getMethod("getMarkers");
+            // Invoke through BMC's public interface: the concrete context can
+            // be an anonymous/non-public implementation in Developer Studio.
+            Class<?> contract = findContextContract(context.getClass());
+            Method getter = (contract != null ? contract : context.getClass())
+                    .getMethod("getMarkers");
             Object raw = getter.invoke(context);
-            if (!(raw instanceof List<?>)) return context;
+            // BMC InfoContext.getMarkers() returns null (not an empty List)
+            // when no resources have reported markers. In 0.1.62 this path
+            // escaped the suppressor and opened an empty, modal InfoDialog.
+            // Only suppress a genuinely empty dialog while the feature is on.
+            if (raw == null) return isSuppressionActive() ? null : context;
+            if (!(raw instanceof List<?>)) return context; // Unknown implementation: fail open.
             List<?> markers = (List<?>) raw;
-            if (markers.isEmpty()) return context;
+            if (markers.isEmpty()) return isSuppressionActive() ? null : context;
             List<Object> visible = filterMarkers(markers);
             if (visible.size() == markers.size()) return context;
             if (visible.isEmpty()) return null;
 
-            Class<?> contract = findContextContract(context.getClass());
             if (contract == null) return context; // fail open rather than risk UI mismatch
             return Proxy.newProxyInstance(contract.getClassLoader(), new Class<?>[] {contract},
                     new FilterContextHandler(context));
@@ -92,11 +123,13 @@ public final class MessageSuppressionBridge {
     }
 
     private static Class<?> findContextContract(Class<?> impl) {
+        return findContract(impl, "com.bmc.arsys.studio.commonui.common.info.IInfoContext");
+    }
+
+    private static Class<?> findContract(Class<?> impl, String interfaceName) {
         for (Class<?> type = impl; type != null; type = type.getSuperclass()) {
             for (Class<?> itf : type.getInterfaces()) {
-                if ("com.bmc.arsys.studio.commonui.common.info.IInfoContext".equals(itf.getName())) {
-                    return itf;
-                }
+                if (interfaceName.equals(itf.getName())) return itf;
             }
         }
         return null;
@@ -113,10 +146,14 @@ public final class MessageSuppressionBridge {
     private static boolean isSuppressedWarningMarker(Object marker) {
         if (marker == null) return false;
         try {
-            Method getType = marker.getClass().getMethod("getType");
+            // Public interface invocation also supports package-private markers.
+            Class<?> markerContract = findContract(marker.getClass(),
+                    "com.bmc.arsys.studio.commonui.common.info.IInfoMarker");
+            Class<?> accessor = markerContract != null ? markerContract : marker.getClass();
+            Method getType = accessor.getMethod("getType");
             Object type = getType.invoke(marker);
             if (type == null || !"WARNING".equals(type.toString())) return false;
-            Method getCode = marker.getClass().getMethod("getCode");
+            Method getCode = accessor.getMethod("getCode");
             Object code = getCode.invoke(marker);
             return code instanceof Number && matchesCode(((Number) code).intValue());
         } catch (Throwable ignored) {

@@ -38,7 +38,7 @@ public class MessageSuppressionRegressionTest {
         public IInfoLocator getLocator() { return null; }
     }
 
-    public static final class Context implements IInfoContext {
+    public static class Context implements IInfoContext {
         List<IInfoMarker> list;
         Context(IInfoMarker... values) { list = new ArrayList<IInfoMarker>(Arrays.asList(values)); }
         public String getContextDescription() { return "test"; }
@@ -69,6 +69,15 @@ public class MessageSuppressionRegressionTest {
             ok(!MessageSuppressionBridge.isValidCodeList("0"), "reject zero");
             ok(!MessageSuppressionBridge.isValidCodeList(""), "reject empty");
             ok(!MessageSuppressionBridge.shouldSuppress(2,5033), "not active by default");
+            // Empty dialogs must be preserved when the suppressor is disabled.
+            Context emptyContext = new Context();
+            Context nullMarkerContext = new Context() {
+                @Override public List<IInfoMarker> getMarkers() { return null; }
+            };
+            ok(MessageSuppressionBridge.filterProblemsContext(emptyContext)==emptyContext,
+                    "disabled: empty context retains BMC behavior");
+            ok(MessageSuppressionBridge.filterProblemsContext(nullMarkerContext)==nullMarkerContext,
+                    "disabled: null markers retain BMC behavior");
 
             write(config,false,"5033,5384");
             ok(!MessageSuppressionBridge.shouldSuppress(2,5033), "disabled must not suppress");
@@ -79,6 +88,21 @@ public class MessageSuppressionRegressionTest {
             ok(!MessageSuppressionBridge.shouldSuppress(4,5033), "5033 ERROR is never suppressed");
             ok(!MessageSuppressionBridge.shouldSuppress(1,5033), "INFO not suppressed");
             ok(!MessageSuppressionBridge.shouldSuppress(2,9999), "other warning shown");
+            ok(MessageSuppressionBridge.filterProblemsContext(emptyContext)==null,
+                    "enabled: zero markers must NOT open an empty InfoDialog");
+            ok(MessageSuppressionBridge.filterProblemsContext(nullMarkerContext)==null,
+                    "enabled: BMC null markers must NOT open an empty InfoDialog");
+            // Real BMC 26.1.1 InfoContext uses null, not an empty list,
+            // when no resource markers were collected.
+            com.bmc.arsys.studio.commonui.common.info.InfoContext bmcEmpty =
+                    new com.bmc.arsys.studio.commonui.common.info.InfoContext("empty context");
+            ok(bmcEmpty.getMarkers()==null, "BMC InfoContext returns null with no markers");
+            ok(MessageSuppressionBridge.filterProblemsContext(bmcEmpty)==null,
+                    "real BMC empty context must NOT open a modal dialog");
+            write(config,true,"");
+            ok(MessageSuppressionBridge.filterProblemsContext(nullMarkerContext)==nullMarkerContext,
+                    "empty suppress list: preserve BMC dialog");
+            write(config,true,"5033,5384");
 
             Context only = new Context(new Marker(5033,IInfoMarker.Type.WARNING),
                                        new Marker(5384,IInfoMarker.Type.WARNING));
