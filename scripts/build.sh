@@ -7,7 +7,7 @@ set -o pipefail
 set -u
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 PLUGIN="$ROOT/source/se.yrell.developertools"
-OUT="$ROOT/install/se.yrell.developertools_0.1.66.jar"
+OUT="$ROOT/install/se.yrell.developertools_0.1.67.jar"
 BUILD="$ROOT/.build"
 ORIGINAL="${1:-}"
 if [[ -z "${ORIGINAL:-}" || ! -e "$ORIGINAL" ]]; then

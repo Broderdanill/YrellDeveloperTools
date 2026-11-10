@@ -1,3 +1,10 @@
+## 0.1.67 — Default warning suppression codes (2026-11-10)
+- New default code list: `5026,5033,5384,5385,5386`.
+- Message Suppressor remains opt-in; only WARNING severity is filtered.
+- Explicitly saved user preferences are not overwritten when updating.
+- Updated Preferences help and added regression checks for all default codes and ERROR preservation.
+- No changes to the suppression runtime, BMC save workflow, or other plugin modules.
+
 ## 0.1.66 — Diagnose remaining blank save-warning popup (2026-11-10)
 
 - No change to warning suppression or save semantics. Empty popup remains under investigation.

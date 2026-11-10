@@ -278,7 +278,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
             addTextSetting(detailHost, "Suppress warning codes", messageSuppressionCodes, new ValueSetter() {
                 public void set(String value) { messageSuppressionCodes = value; }
             });
-            addInfo(detailHost, "Comma-separated BMC codes (default 5033,5384). Only messages with severity WARNING are hidden. Errors, fatal errors and save failures are never suppressed.");
+            addInfo(detailHost, "Comma-separated BMC codes (default 5026,5033,5384,5385,5386). Only messages with severity WARNING are hidden. Errors, fatal errors and save failures are never suppressed.");
             addImportant(detailHost, "Warning popups and the Problems dialog are affected; BMC's validation and AR save result are not modified. Restart Developer Studio with -clean after installation.");
         } else if (FEATURE_TABLE_NAMES.equals(featureId)) {
             addTextSetting(detailHost, "Table column database-name pattern", tableColumnPattern, new ValueSetter() {
@@ -571,7 +571,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         }
         if (messageSuppressionEnabled && !se.yrell.developertools.runtime.MessageSuppressionBridge.isValidCodeList(messageSuppressionCodes)) {
             MessageDialog.openError(getShell(), "Yrell Developer Tools",
-                    "Message Suppressor codes must be comma-separated integers, e.g. 5033,5384.");
+                    "Message Suppressor codes must be comma-separated integers, e.g. 5026,5033,5384,5385,5386.");
             selectFeature(FEATURE_MESSAGE_SUPPRESSION);
             return false;
         }
@@ -805,7 +805,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
                 "Restart Developer Studio with -clean after installation. Existing lists may need to be reopened."));
         features.put(FEATURE_MESSAGE_SUPPRESSION, new Feature(FEATURE_MESSAGE_SUPPRESSION, "Message Suppressor",
                 "Hides selected warning codes during save, without suppressing errors or affecting validation.",
-                "Restart Developer Studio with -clean after installing 0.1.66. Editing code list takes effect immediately."));
+                "Restart Developer Studio with -clean after installing 0.1.67. Editing code list takes effect immediately."));
         features.put(FEATURE_MIDTIER_CACHE, new Feature(FEATURE_MIDTIER_CACHE, "MidTier Cache Flush",
                 "Flush MidTier cache for the current form or workflow, a complete instance, or all pods.",
                 "No restart required for settings. Reopen an editor if the toolbar visibility does not update immediately."));

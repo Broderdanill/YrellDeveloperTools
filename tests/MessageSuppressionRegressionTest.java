@@ -17,6 +17,7 @@ import org.objectweb.asm.Opcodes;
 
 import com.bmc.arsys.studio.commonui.common.info.*;
 import se.yrell.developertools.runtime.MessageSuppressionBridge;
+import se.yrell.developertools.ToolsConstants;
 import se.yrell.developertools.internal.weaving.MessageSuppressionTransformer;
 
 public class MessageSuppressionRegressionTest {
@@ -77,6 +78,12 @@ public class MessageSuppressionRegressionTest {
             ok(dir.mkdirs(), "test config dir");
             File config = new File(dir, "message-suppression.properties");
 
+            ok("5026,5033,5384,5385,5386".equals(ToolsConstants.DEFAULT_MESSAGE_SUPPRESSION_CODES),
+                    "five user-requested default codes");
+            ok(!ToolsConstants.DEFAULT_MESSAGE_SUPPRESSION_ENABLED,
+                    "suppression still requires explicit activation");
+            ok(MessageSuppressionBridge.isValidCodeList(ToolsConstants.DEFAULT_MESSAGE_SUPPRESSION_CODES),
+                    "new default is valid");
             ok(MessageSuppressionBridge.isValidCodeList("5033,5384"), "valid default codes");
             ok(MessageSuppressionBridge.isValidCodeList(" 5033 ; 5384 "), "separator handling");
             ok(!MessageSuppressionBridge.isValidCodeList("5033,bad"), "reject invalid code");
@@ -95,7 +102,17 @@ public class MessageSuppressionRegressionTest {
 
             write(config,false,"5033,5384");
             ok(!MessageSuppressionBridge.shouldSuppress(2,5033), "disabled must not suppress");
+            write(config,true,ToolsConstants.DEFAULT_MESSAGE_SUPPRESSION_CODES);
+            for (int code : new int[]{5026,5033,5384,5385,5386}) {
+                ok(MessageSuppressionBridge.shouldSuppress(2,code),
+                        "default WARNING suppression code " + code);
+                ok(!MessageSuppressionBridge.shouldSuppress(4,code),
+                        "ERROR remains visible even for configured code " + code);
+            }
+            // A user-editable subset must still be respected, not overwritten by the defaults.
             write(config,true,"5033,5384");
+            ok(!MessageSuppressionBridge.shouldSuppress(2,5386),
+                    "custom code list is not expanded behind user's back");
             ok(MessageSuppressionBridge.shouldSuppress(2,5033), "5033 WARNING");
             ok(MessageSuppressionBridge.shouldSuppress(2,5384), "5384 WARNING, if reported as such");
             ok(!MessageSuppressionBridge.shouldSuppress(4,5384), "5384 ERROR is never suppressed");
@@ -153,7 +170,7 @@ public class MessageSuppressionRegressionTest {
             ok(MessageSuppressionBridge.shouldShowFormSaveWarnings(null,noMessages),
                     "normal form save with unknown marker source fails open");
 
-            // 0.1.66 regression: diagnose marker counts, codes and severity
+            // 0.1.67 regression: diagnose marker counts, codes and severity
             // WITHOUT copying BMC message bodies, object names or resources.
             SaveResource diagnosticResource = new SaveResource(
                     new Marker(5033, IInfoMarker.Type.WARNING),
@@ -167,7 +184,7 @@ public class MessageSuppressionRegressionTest {
                     "diagnostic sample keeps unsuppressed warning/error");
             File diagnosticLog = new File(dir, "message-suppression-diagnostics.log");
             String diagnosticLines = Files.readString(diagnosticLog.toPath());
-            ok(diagnosticLines.contains("0.1.66 form-success-details"),
+            ok(diagnosticLines.contains("0.1.67 form-success-details"),
                     "form save records marker inventory");
             ok(diagnosticLines.contains("sourceMarkers=count=3[WARNING:5033/SUPPRESSED,"
                     + "WARNING:5384/SUPPRESSED,WARNING:7717/KEPT]"),
@@ -206,7 +223,7 @@ public class MessageSuppressionRegressionTest {
                                        new Marker(5384,IInfoMarker.Type.WARNING));
             ok(MessageSuppressionBridge.filterProblemsContext(only)==null, "suppress all-only-warning dialog");
             diagnosticLines = Files.readString(diagnosticLog.toPath());
-            ok(diagnosticLines.contains("0.1.66 presentation action=DROP displayedCount=0"
+            ok(diagnosticLines.contains("0.1.67 presentation action=DROP displayedCount=0"
                     + " input=count=2[WARNING:5033/SUPPRESSED,WARNING:5384/SUPPRESSED]"),
                     "presentation logging reflects exact dialog filtering state");
             ok(only.getMarkers().size()==2, "no source marker removed");

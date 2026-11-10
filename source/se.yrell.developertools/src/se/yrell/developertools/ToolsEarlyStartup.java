@@ -17,13 +17,13 @@ public class ToolsEarlyStartup implements IStartup {
     @Override
     public void earlyStartup() {
         try {
-            Log.info("Startup initialized (Yrell Developer Tools 0.1.66)");
+            Log.info("Startup initialized (Yrell Developer Tools 0.1.67)");
             if (Boolean.getBoolean("se.yrell.developertools.fastFormsAgent.active")) {
                 String agentVersion = System.getProperty("se.yrell.developertools.agent.version", "unknown");
-                if (!"0.1.66".equals(agentVersion)) {
-                    Log.warn("Yrell Developer Tools 0.1.66 has an older/unrecognized -javaagent ("
+                if (!"0.1.67".equals(agentVersion)) {
+                    Log.warn("Yrell Developer Tools 0.1.67 has an older/unrecognized -javaagent ("
                             + agentVersion + "). Replace its devstudio.ini -javaagent JAR path"
-                            + " with se.yrell.developertools_0.1.66.jar, then restart with -clean.");
+                            + " with se.yrell.developertools_0.1.67.jar, then restart with -clean.");
                 } else {
                     Log.info("Message Suppressor agent version verified: " + agentVersion);
                 }

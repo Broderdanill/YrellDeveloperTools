@@ -40,7 +40,7 @@ public final class ToolsConstants {
     public static final String PREF_MESSAGE_SUPPRESSION_ENABLED = "messageSuppression.enabled";
     public static final String PREF_MESSAGE_SUPPRESSION_CODES = "messageSuppression.codes";
     public static final boolean DEFAULT_MESSAGE_SUPPRESSION_ENABLED = false;
-    public static final String DEFAULT_MESSAGE_SUPPRESSION_CODES = "5033,5384";
+    public static final String DEFAULT_MESSAGE_SUPPRESSION_CODES = "5026,5033,5384,5385,5386";
 
     public static final String PREF_MIDTIER_CACHE_ENABLED = "midTierCache.enabled";
     public static final String PREF_MIDTIER_CACHE_MAPPINGS = "midTierCache.serverMappings";

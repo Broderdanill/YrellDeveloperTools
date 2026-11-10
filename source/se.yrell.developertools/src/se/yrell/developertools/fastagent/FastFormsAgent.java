@@ -46,8 +46,8 @@ public final class FastFormsAgent {
         }
         // Startup verification: the installed Eclipse plugin and the -javaagent
         // must use the SAME release. An old agent can keep the previous hooks.
-        System.setProperty("se.yrell.developertools.agent.version", "0.1.66");
-        FastFormsBridge.logAlways("loaded v11 (release 0.1.66); enabled=" + FastFormsBridge.isEnabledForAgent() +
+        System.setProperty("se.yrell.developertools.agent.version", "0.1.67");
+        FastFormsBridge.logAlways("loaded v11 (release 0.1.67); enabled=" + FastFormsBridge.isEnabledForAgent() +
             ", values=" + FastFormsBridge.valuesForAgent() +
             ", logFile=" + FastFormsBridge.logFilePathForAgent() +
             ", bootstrapBridge=bridge-only");

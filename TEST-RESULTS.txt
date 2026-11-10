@@ -1,11 +1,13 @@
-Yrell Developer Tools 0.1.66 — validation record
+Yrell Developer Tools 0.1.67 — validation record
 Target: BMC Developer Studio 26.1.1 build001
-Compilation: 67 Java source files; javac --release 17: PASS
-Regression: existing suite, MessageSuppressionRegressionTest 71 PASS: PASS
-Agent bootstrap: PASS
-MessageSuppressor early-hook tests with -javaagent: 72 PASS
-BMC Info / FormEditor / DocumentPage class load with -Xverify:all and -javaagent: 3 PASS
-Optional SWT browser ES5 DOM test: 60 PASS
-All tests: PASS
-Scope: diagnostic-only enhancement for the empty Save successful with warnings dialog.
-Live Windows integration is not verified. The remaining popup is not yet fixed.
+Compilation: 67 Java files; Java 17: PASS
+Full regression test suite: PASS
+MessageSuppressionRegressionTest: 85 PASS; 86 PASS with -javaagent
+New defaults: 5026,5033,5384,5385,5386 verified as WARNING-only
+Suppression remains disabled by default
+Custom code list behavior retained, errors/fatal never suppressed
+Agent bootstrap and BMC class verification with -Xverify:all: PASS
+SWT Browser ES5 DOM simulation: 60 PASS
+Scope: defaults/help/test updates only; no changed runtime suppression algorithm.
+Live Windows behavior was previously tested by the user with the five codes configured manually;
+this build still requires Windows install verification.

@@ -329,7 +329,7 @@ public final class MessageSuppressionBridge {
             if (log.isFile() && log.length() > 262144L) {
                 java.nio.file.Files.deleteIfExists(log.toPath());
             }
-            String line = java.time.Instant.now().toString() + " 0.1.66 " + detail
+            String line = java.time.Instant.now().toString() + " 0.1.67 " + detail
                     + System.lineSeparator();
             java.nio.file.Files.write(log.toPath(), line.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                     java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
