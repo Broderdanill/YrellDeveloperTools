@@ -106,11 +106,22 @@ public final class MessageSuppressionBridge {
             // when no resources have reported markers. In 0.1.62 this path
             // escaped the suppressor and opened an empty, modal InfoDialog.
             // Only suppress a genuinely empty dialog while the feature is on.
-            if (raw == null) return isSuppressionActive() ? null : context;
-            if (!(raw instanceof List<?>)) return context; // Unknown implementation: fail open.
+            if (raw == null) {
+                auditPresentation(context, "null", "EMPTY");
+                return isSuppressionActive() ? null : context;
+            }
+            if (!(raw instanceof List<?>)) {
+                auditPresentation(context, "unknown", "KEEP");
+                return context; // Unknown implementation: fail open.
+            }
             List<?> markers = (List<?>) raw;
-            if (markers.isEmpty()) return isSuppressionActive() ? null : context;
+            if (markers.isEmpty()) {
+                auditPresentation(context, "0", "EMPTY");
+                return isSuppressionActive() ? null : context;
+            }
             List<Object> visible = filterMarkers(markers);
+            auditPresentation(context, Integer.toString(visible.size()),
+                    visible.isEmpty() ? "DROP" : visible.size() == markers.size() ? "KEEP" : "FILTER");
             if (visible.size() == markers.size()) return context;
             if (visible.isEmpty()) return null;
 
@@ -118,6 +129,7 @@ public final class MessageSuppressionBridge {
             return Proxy.newProxyInstance(contract.getClassLoader(), new Class<?>[] {contract},
                     new FilterContextHandler(context));
         } catch (Throwable ignored) {
+            auditPresentation(context, "unreadable", "KEEP");
             return context;
         }
     }
@@ -203,6 +215,7 @@ public final class MessageSuppressionBridge {
         boolean shouldShow = source == MARKERS_UNKNOWN || display == MARKERS_UNKNOWN
                 || source == MARKERS_VISIBLE || display == MARKERS_VISIBLE;
         auditSaveGuard("form-success", source, display, shouldShow);
+        auditSaveGuardDetails(infoResource, infoContext);
         return shouldShow;
     }
 
@@ -255,11 +268,60 @@ public final class MessageSuppressionBridge {
     }
 
     /**
-     * Small bounded diagnostic file, recording no object names, credentials or
-     * message text. If a blank dialog remains we can determine which callsite
-     * was active and whether the hook actually executed in Developer Studio.
+     * Diagnose the actual marker metadata, not message text. A state value of 3
+     * means that at least one marker was not suppressed; it is NOT a count.
+     * Only numeric codes and the three BMC marker severities are recorded.
      */
-    private static void auditSaveGuard(String path, int original, int visible, boolean show) {
+    private static String markerSnapshot(Object source, String interfaceName) {
+        if (source == null) return "null";
+        try {
+            Class<?> contract = findContract(source.getClass(), interfaceName);
+            Class<?> accessor = contract != null ? contract : source.getClass();
+            Object raw = accessor.getMethod("getMarkers").invoke(source);
+            if (raw == null) return "null-markers";
+            if (!(raw instanceof List<?>)) return "unexpected-marker-container";
+            List<?> markers = (List<?>) raw;
+            StringBuilder out = new StringBuilder();
+            out.append("count=").append(markers.size()).append("[");
+            int max = Math.min(markers.size(), 16);
+            for (int i = 0; i < max; ++i) {
+                if (i > 0) out.append(',');
+                Object marker = markers.get(i);
+                if (marker == null) {
+                    out.append("null");
+                    continue;
+                }
+                try {
+                    Class<?> markerContract = findContract(marker.getClass(),
+                            "com.bmc.arsys.studio.commonui.common.info.IInfoMarker");
+                    Class<?> markerAccessor = markerContract != null ? markerContract : marker.getClass();
+                    Object codeRaw = markerAccessor.getMethod("getCode").invoke(marker);
+                    Object typeRaw = markerAccessor.getMethod("getType").invoke(marker);
+                    String severity = typeRaw instanceof Enum<?>
+                            ? ((Enum<?>) typeRaw).name() : "UNKNOWN";
+                    int code = codeRaw instanceof Number ? ((Number) codeRaw).intValue() : 0;
+                    out.append(severity).append(':').append(code);
+                    out.append(isSuppressedWarningMarker(marker) ? "/SUPPRESSED" : "/KEPT");
+                } catch (Throwable ignored) {
+                    out.append("unreadable-marker");
+                }
+            }
+            if (markers.size() > max) out.append(",remaining=").append(markers.size() - max);
+            return out.append(']').toString();
+        } catch (Throwable ignored) {
+            return "unreadable-source";
+        }
+    }
+
+    private static void auditPresentation(Object context, String displayedCount, String action) {
+        if (!isSuppressionActive()) return;
+        appendDiagnostic("presentation action=" + action
+                + " displayedCount=" + displayedCount
+                + " input=" + markerSnapshot(context,
+                "com.bmc.arsys.studio.commonui.common.info.IInfoContext"));
+    }
+
+    private static void appendDiagnostic(String detail) {
         try {
             File root = new File(System.getProperty("user.home", ""), ".yrell-developertools");
             if (!root.isDirectory()) return;
@@ -267,14 +329,35 @@ public final class MessageSuppressionBridge {
             if (log.isFile() && log.length() > 262144L) {
                 java.nio.file.Files.deleteIfExists(log.toPath());
             }
-            String line = java.time.Instant.now().toString() + " 0.1.65 " + path
-                    + " source=" + original + " display=" + visible
-                    + " action=" + (show ? "SHOW" : "SKIP") + System.lineSeparator();
+            String line = java.time.Instant.now().toString() + " 0.1.66 " + detail
+                    + System.lineSeparator();
             java.nio.file.Files.write(log.toPath(), line.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                     java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
         } catch (Throwable ignored) {
-            // Diagnostics must never alter save behaviour.
+            // Observability must never change Developer Studio's save semantics.
         }
+    }
+
+    /**
+     * Small bounded diagnostic file, recording no object names, credentials or
+     * message text. If a blank dialog remains we can determine which callsite
+     * was active and whether the hook actually executed in Developer Studio.
+     */
+    private static void auditSaveGuard(String path, int original, int visible, boolean show) {
+        // No message text, object/form names, user names, hostnames or credentials.
+        // FormEditor success-branch metadata is recorded through a separate
+        // diagnostic overload with access to the original objects.
+        appendDiagnostic(path + " source=" + original + " display=" + visible
+                + " action=" + (show ? "SHOW" : "SKIP"));
+    }
+
+    private static void auditSaveGuardDetails(Object infoResource, Object infoContext) {
+        appendDiagnostic("form-success-details sourceMarkers="
+                + markerSnapshot(infoResource,
+                "com.bmc.arsys.studio.commonui.common.info.IInfoResource")
+                + " displayMarkers="
+                + markerSnapshot(infoContext,
+                "com.bmc.arsys.studio.commonui.common.info.IInfoContext"));
     }
 
     /**

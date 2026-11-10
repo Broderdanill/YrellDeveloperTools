@@ -152,6 +152,31 @@ public class MessageSuppressionRegressionTest {
                     "normal form save must retain a visible nonconfigured warning");
             ok(MessageSuppressionBridge.shouldShowFormSaveWarnings(null,noMessages),
                     "normal form save with unknown marker source fails open");
+
+            // 0.1.66 regression: diagnose marker counts, codes and severity
+            // WITHOUT copying BMC message bodies, object names or resources.
+            SaveResource diagnosticResource = new SaveResource(
+                    new Marker(5033, IInfoMarker.Type.WARNING),
+                    new Marker(5384, IInfoMarker.Type.WARNING),
+                    new Marker(7717, IInfoMarker.Type.WARNING));
+            Context diagnosticContext = new Context(
+                    new Marker(5033, IInfoMarker.Type.WARNING),
+                    new Marker(7717, IInfoMarker.Type.ERROR));
+            ok(MessageSuppressionBridge.shouldShowFormSaveWarnings(
+                    diagnosticResource, diagnosticContext),
+                    "diagnostic sample keeps unsuppressed warning/error");
+            File diagnosticLog = new File(dir, "message-suppression-diagnostics.log");
+            String diagnosticLines = Files.readString(diagnosticLog.toPath());
+            ok(diagnosticLines.contains("0.1.66 form-success-details"),
+                    "form save records marker inventory");
+            ok(diagnosticLines.contains("sourceMarkers=count=3[WARNING:5033/SUPPRESSED,"
+                    + "WARNING:5384/SUPPRESSED,WARNING:7717/KEPT]"),
+                    "source marker codes, types and keep decision are correct");
+            ok(diagnosticLines.contains("displayMarkers=count=2[WARNING:5033/SUPPRESSED,"
+                    + "ERROR:7717/KEPT]"),
+                    "display marker codes and severity are correct");
+            ok(!diagnosticLines.contains("Code 7717"),
+                    "diagnostic must not contain message bodies");
             List<FakeStatus> onlyStatusWarnings = Arrays.asList(new FakeStatus(5033,1),new FakeStatus(5384,1));
             ok(!MessageSuppressionBridge.shouldShowDocumentSaveWarnings(onlyStatusWarnings,false),
                     "workflow save: all selected AR WARNING statuses suppress dialog");
@@ -180,6 +205,10 @@ public class MessageSuppressionRegressionTest {
             Context only = new Context(new Marker(5033,IInfoMarker.Type.WARNING),
                                        new Marker(5384,IInfoMarker.Type.WARNING));
             ok(MessageSuppressionBridge.filterProblemsContext(only)==null, "suppress all-only-warning dialog");
+            diagnosticLines = Files.readString(diagnosticLog.toPath());
+            ok(diagnosticLines.contains("0.1.66 presentation action=DROP displayedCount=0"
+                    + " input=count=2[WARNING:5033/SUPPRESSED,WARNING:5384/SUPPRESSED]"),
+                    "presentation logging reflects exact dialog filtering state");
             ok(only.getMarkers().size()==2, "no source marker removed");
 
             Context mixed = new Context(new Marker(5033,IInfoMarker.Type.WARNING),

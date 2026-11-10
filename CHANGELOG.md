@@ -1,4 +1,11 @@
-## 0.1.65 — Second FormEditor warning dialog path + diagnostics (2026-11-10)
+## 0.1.66 — Diagnose remaining blank save-warning popup (2026-11-10)
+
+- No change to warning suppression or save semantics. Empty popup remains under investigation.
+- Log marker counts, numeric codes, severity and suppressibility for both BMC save-success sources.
+- Log the marker inventory when BMC Info.showProblems presents a warning dialog.
+- Avoid message text, object names and URLs in diagnostics. Fail open when unreadable.
+
+## 0.1.66 — Second FormEditor warning dialog path + diagnostics (2026-11-10)
 
 - Confirmed Developer Studio 26.1.1 `FormEditor.saveForm` has **two** `Save successful with warnings.` dialog call sites. 0.1.64 guarded only the first, leaving the `ModelException` warning-only branch able to open a modal despite suppression.
 - Instrument both call sites. Guard the ordinary success call using original source markers and the context actually presented. In the `ModelException` call, BMC marks the operation `SAVE_STATE.FAILED`; preserve its popup and log it explicitly rather than hiding a failed save. Preserve ERROR/FATAL/unknown markers and retain `DocumentPage` safeguards.
@@ -6,7 +13,7 @@
 - Record `-javaagent` release version and report mismatches at Eclipse startup; tests now assert two FormEditor guards instead of one, with additional warning/error/empty context cases.
 - Tested against the real BMC 26.1.1 class bytecode with the Java 17 verifier and -javaagent. Actual Windows UI behavior still requires an integration test.
 
-## 0.1.65 — Prevent empty "Save successful with warnings." dialogs (2026-11-10)
+## 0.1.66 — Prevent empty "Save successful with warnings." dialogs (2026-11-10)
 
 - Root cause confirmed from real Developer Studio 26.1.1 bytecode: `FormEditor.saveForm` decides to invoke `Info.showProblems` based on `infoResource.getMarkers()` BEFORE the presentation-only suppression runs; `DocumentPage.internalSave` has a similar check on unfiltered `StatusInfo` entries. Filtering just `InfoContext` cannot reliably prevent this outer dialog invocation.
 - Add narrowly scoped guards to the **successful save-warning** call sites, examining their ORIGINAL warning markers/status entries. If *every* entry is a configured WARNING, BMC's modal is never opened. Mixed warnings, ERRORs and unknown markers remain visible. The FormEditor failed-save branch and DocumentPage's failed-save flag never suppress a dialog.

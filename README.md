@@ -1,11 +1,34 @@
-# Yrell Developer Tools 0.1.65 — Save warning popup (both FormEditor branches)
+# Yrell Developer Tools 0.1.66 — Message Suppressor diagnostics
+
+This version leaves suppression decisions and save handling **unchanged** from 0.1.65.
+A user reported `form-success source=3 display=3 action=SHOW` even though the
+save-warning dialog was empty. Code `3` means at least one marker appears
+unsuppressed; it is **not** the marker count. We must identify the actual
+codes/severities before altering the decision to avoid silently hiding real errors.
+
+When Message Suppressor is enabled, the diagnostic log now includes
+`form-success-details` showing counts and numeric codes plus severity of
+both the `IInfoResource` markers and the `IInfoContext` markers. A separate
+`presentation` line shows the marker state when `Info.showProblems()` runs,
+including how many remain after filtering. Only codes and severity are logged;
+no form names, message strings, server names, URLs or authentication data.
+
+Log location on Windows:
+`%USERPROFILE%\.yrell-developertools\message-suppression-diagnostics.log`.
+Run one save that produces the empty popup, then share only the latest
+`form-success`, `form-success-details` and `presentation` log lines. This
+version is a **diagnostic build**, not a claim that the popup is fixed.
+
+---
+
+# Yrell Developer Tools 0.1.66 — Save warning popup (both FormEditor branches)
 
 BMC Developer Studio 26.1.1 `FormEditor.saveForm()` has **two** call sites with
 identical `Save successful with warnings.` captions: an ordinary save path
 and a `ModelException`/warning-status path. Version 0.1.64 guarded only the
 first call site. This is confirmed in the BMC 26.1.1 build001 class bytecode.
 
-Version 0.1.65 instruments BOTH call sites. In the actual success branch,
+Version 0.1.66 instruments BOTH call sites. In the actual success branch,
 it checks the original `IInfoResource` markers *and* the displayed
 `IInfoContext`; the popup is skipped only when neither contains errors or
 unconfigured warnings and both are readable. The exception branch is
@@ -20,7 +43,7 @@ records `form-success` or `form-model-exception-save-failed` and `action=SHOW/SK
 object names or warning text. A missing entry while the popup appears may
 indicate that Developer Studio is running an older `-javaagent` or that the
 BMC class was loaded before the hook attached. The startup log now checks
-that the agent reports release **0.1.65**; verify any `-javaagent` path in
+that the agent reports release **0.1.66**; verify any `-javaagent` path in
 `devstudio.ini` uses the same JAR version as the installed plugin.
 
 Automatic unit/bytecode tests pass against the supplied BMC Developer Studio
@@ -71,7 +94,7 @@ Complete Eclipse plugin source, installable JAR, Java 17 build scripts and regre
 ## Package
 
 - `source/se.yrell.developertools/`: all 67 Java source files, plugin XML, OSGi manifest and icons.
-- `install/se.yrell.developertools_0.1.65.jar`: Windows Developer Studio plugin/optional Fast object lists Java agent.
+- `install/se.yrell.developertools_0.1.66.jar`: Windows Developer Studio plugin/optional Fast object lists Java agent.
 - `scripts/build.sh` and `scripts/test.sh`: Java 17 compilation and tests.
 - `tests/`: Java regression tests including an embedded mock MidTier HTTP server.
 - `CHANGELOG.md` / `TEST-RESULTS.txt`.
@@ -86,7 +109,7 @@ After installing this release into `~/Git/YrellDeveloperTools`, use the previous
 cd ~/Git/YrellDeveloperTools
 ./scripts/build.sh "$PWD/.build/devstudio/x64"
 ./scripts/test.sh "$PWD/.build/devstudio/x64"
-cp -v install/se.yrell.developertools_0.1.65.jar ~/Downloads/
+cp -v install/se.yrell.developertools_0.1.66.jar ~/Downloads/
 ```
 
 If the `.build` cache has been removed, use the original ZIP once:
@@ -101,11 +124,11 @@ Build requirements: Java JDK 17+, `unzip`. The build targets BMC Developer Studi
 
 1. Exit Developer Studio. Back up `x64/devstudio.ini` and the previous plugin JAR.
 2. Delete/relocate previous `se.yrell.developertools_*.jar` files from `x64/plugins`.
-3. Copy `se.yrell.developertools_0.1.65.jar` into `x64/plugins`.
+3. Copy `se.yrell.developertools_0.1.66.jar` into `x64/plugins`.
 4. If Fast object lists uses `-javaagent`, adjust the existing agent argument **after** the `-vmargs` line in `x64/devstudio.ini`:
 
    ```ini
-   -javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.65.jar
+   -javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.66.jar
    ```
 
 5. Restart with `-clean` once. Do not add a second `-vmargs` line.
