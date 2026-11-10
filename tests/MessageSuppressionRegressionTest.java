@@ -38,6 +38,20 @@ public class MessageSuppressionRegressionTest {
         public IInfoLocator getLocator() { return null; }
     }
 
+    public static final class SaveResource {
+        private final List<IInfoMarker> markers;
+        SaveResource(IInfoMarker... values) { markers = Arrays.asList(values); }
+        public List<IInfoMarker> getMarkers() { return markers; }
+    }
+
+    public static final class FakeStatus {
+        private final long number;
+        private final int type;
+        FakeStatus(long number, int type) { this.number = number; this.type = type; }
+        public long getMessageNum() { return number; }
+        public int getMessageType() { return type; }
+    }
+
     public static class Context implements IInfoContext {
         List<IInfoMarker> list;
         Context(IInfoMarker... values) { list = new ArrayList<IInfoMarker>(Arrays.asList(values)); }
@@ -104,6 +118,37 @@ public class MessageSuppressionRegressionTest {
                     "empty suppress list: preserve BMC dialog");
             write(config,true,"5033,5384");
 
+            // The real BMC FormEditor tests infoResource.getMarkers BEFORE
+            // calling Info.showProblems, not the filtered infoContext.
+            SaveResource onlySuppressedSave = new SaveResource(
+                    new Marker(5033,IInfoMarker.Type.WARNING),
+                    new Marker(5384,IInfoMarker.Type.WARNING));
+            ok(!MessageSuppressionBridge.shouldShowFormSaveWarnings(onlySuppressedSave),
+                    "form save: all selected warnings should skip original modal");
+            ok(MessageSuppressionBridge.shouldShowFormSaveWarnings(new SaveResource(
+                    new Marker(5033,IInfoMarker.Type.WARNING),
+                    new Marker(5384,IInfoMarker.Type.ERROR))),
+                    "form save: same-code ERROR retains original modal");
+            ok(MessageSuppressionBridge.shouldShowFormSaveWarnings(new SaveResource(
+                    new Marker(5033,IInfoMarker.Type.WARNING),
+                    new Marker(7777,IInfoMarker.Type.WARNING))),
+                    "form save: unsuppressed WARNING retains modal");
+            ok(MessageSuppressionBridge.shouldShowFormSaveWarnings(new SaveResource()),
+                    "form save: no original markers fails open");
+            ok(MessageSuppressionBridge.shouldShowFormSaveWarnings(null),
+                    "form save: unavailable resource fails open");
+            List<FakeStatus> onlyStatusWarnings = Arrays.asList(new FakeStatus(5033,1),new FakeStatus(5384,1));
+            ok(!MessageSuppressionBridge.shouldShowDocumentSaveWarnings(onlyStatusWarnings,false),
+                    "workflow save: all selected AR WARNING statuses suppress dialog");
+            ok(MessageSuppressionBridge.shouldShowDocumentSaveWarnings(onlyStatusWarnings,true),
+                    "workflow save: failed save always keeps modal");
+            ok(MessageSuppressionBridge.shouldShowDocumentSaveWarnings(Arrays.asList(new FakeStatus(5384,2)),false),
+                    "workflow save: ERROR always visible");
+            ok(MessageSuppressionBridge.shouldShowDocumentSaveWarnings(Arrays.asList(new FakeStatus(9999,1)),false),
+                    "workflow save: other warning visible");
+            ok(MessageSuppressionBridge.shouldShowDocumentSaveWarnings(null,false),
+                    "workflow save: unknown statuses retain dialog");
+
             Context only = new Context(new Marker(5033,IInfoMarker.Type.WARNING),
                                        new Marker(5384,IInfoMarker.Type.WARNING));
             ok(MessageSuppressionBridge.filterProblemsContext(only)==null, "suppress all-only-warning dialog");
@@ -148,6 +193,51 @@ public class MessageSuppressionRegressionTest {
             },0);
             ok(calls[0]==1 && calls[1]==1, "two correctly scoped Info presentation hooks");
             ok(MessageSuppressionTransformer.transform("other/Class",original)==null, "not a broad BMC patch");
+
+            // Bytecode-level regression: instrument the verified 26.1.1
+            // save-success dialog invocations, NEVER save-failed handling.
+            String[] targets = {
+                MessageSuppressionTransformer.FORM_EDITOR_CLASS,
+                MessageSuppressionTransformer.DOCUMENT_PAGE_CLASS
+            };
+            for (String target : targets) {
+                InputStream targetIn = MessageSuppressionRegressionTest.class.getClassLoader()
+                        .getResourceAsStream(target + ".class");
+                ok(targetIn != null, "BMC 26.1.1 save class available: " + target);
+                byte[] originalTarget = targetIn.readAllBytes();
+                byte[] transformedTarget = MessageSuppressionTransformer.transform(target, originalTarget);
+                ok(transformedTarget != null, "BMC save-warning callsite patched: " + target);
+                final int[] guards = new int[1];
+                final int[] showCalls = new int[1];
+                final int[] unsuppressedFailed = new int[1];
+                new ClassReader(transformedTarget).accept(new ClassVisitor(Opcodes.ASM9) {
+                    @Override public MethodVisitor visitMethod(int access,String name,String descriptor,
+                                                                  String signature,String[] exceptions) {
+                        final boolean saveMethod = "saveForm".equals(name) || "internalSave".equals(name);
+                        return new MethodVisitor(Opcodes.ASM9,super.visitMethod(access,name,descriptor,signature,exceptions)) {
+                            public void visitMethodInsn(int opcode,String owner,String method,String desc,boolean itf) {
+                                if (saveMethod && owner.equals("se/yrell/developertools/runtime/MessageSuppressionBridge")
+                                        && method.startsWith("shouldShow")) guards[0]++;
+                                if (saveMethod && owner.equals(MessageSuppressionTransformer.INFO_CLASS)
+                                        && method.equals("showProblems")) showCalls[0]++;
+                                super.visitMethodInsn(opcode,owner,method,desc,itf);
+                            }
+                            public void visitLdcInsn(Object value) {
+                                if (saveMethod && "Save failed for form {0}.".equals(value)) unsuppressedFailed[0]++;
+                                super.visitLdcInsn(value);
+                            }
+                        };
+                    }
+                },0);
+                ok(guards[0] == 1, "exactly one successful-save guard: " + target);
+                ok(showCalls[0] == (target.equals(MessageSuppressionTransformer.FORM_EDITOR_CLASS) ? 3 : 2),
+                        "original BMC dialog calls retained: " + target);
+                if (target.equals(MessageSuppressionTransformer.FORM_EDITOR_CLASS)) {
+                    ok(unsuppressedFailed[0] == 1, "form save-failed branch preserved");
+                }
+            }
+            ok(!MessageSuppressionTransformer.supports("org/eclipse/other/Class"),
+                    "no broad instrumentation of arbitrary classes");
 
             if (Boolean.getBoolean("yrell.verifyAgentInfoHook")) {
                 Class.forName("com.bmc.arsys.studio.commonui.common.info.Info", false,

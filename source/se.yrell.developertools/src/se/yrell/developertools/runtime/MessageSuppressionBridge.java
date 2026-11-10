@@ -161,6 +161,58 @@ public final class MessageSuppressionBridge {
         }
     }
 
+    /**
+     * Guard BMC FormEditor.saveForm's *save-success* warning dialog before
+     * it opens. FormEditor counts unfiltered infoResource markers, whereas the
+     * Info dialog uses infoContext; these are not necessarily synchronized.
+     * Only omit the dialog when all resource markers are configured WARNINGs.
+     * Any unknown marker type or reflection problem keeps the BMC dialog.
+     */
+    public static boolean shouldShowFormSaveWarnings(Object infoResource) {
+        if (!isSuppressionActive() || infoResource == null) return true;
+        try {
+            Class<?> contract = findContract(infoResource.getClass(),
+                    "com.bmc.arsys.studio.commonui.common.info.IInfoResource");
+            Class<?> accessor = contract != null ? contract : infoResource.getClass();
+            Object raw = accessor.getMethod("getMarkers").invoke(infoResource);
+            if (!(raw instanceof List<?>)) return true;
+            List<?> markers = (List<?>) raw;
+            if (markers.isEmpty()) return true; // Unknown cause of the warning dialog.
+            for (Object marker : markers) {
+                if (!isSuppressedWarningMarker(marker)) return true;
+            }
+            return false;
+        } catch (Throwable ignored) {
+            return true; // Fail open: BMC dialog is safer than a hidden error.
+        }
+    }
+
+    /**
+     * DocumentPage.doSave uses a List<StatusInfo> from the AR API, not the
+     * FormEditor marker resource. AR StatusInfo message type 1 is WARNING;
+     * message types 2/3/4 must never be dismissed.
+     */
+    public static boolean shouldShowDocumentSaveWarnings(Object statuses, boolean saveFailed) {
+        if (saveFailed || !isSuppressionActive() || !(statuses instanceof List<?>)) return true;
+        List<?> entries = (List<?>) statuses;
+        if (entries.isEmpty()) return true;
+        try {
+            for (Object status : entries) {
+                if (status == null) return true;
+                Method getType = status.getClass().getMethod("getMessageType");
+                Method getNumber = status.getClass().getMethod("getMessageNum");
+                Object type = getType.invoke(status);
+                Object number = getNumber.invoke(status);
+                if (!(type instanceof Number) || ((Number) type).intValue() != 1
+                        || !(number instanceof Number)
+                        || !matchesCode(((Number) number).intValue())) return true;
+            }
+            return false;
+        } catch (Throwable ignored) {
+            return true;
+        }
+    }
+
     /** Only the dialog's getMarkers() is filtered; the underlying source stays intact. */
     public static final class FilterContextHandler implements InvocationHandler {
         private final Object original;

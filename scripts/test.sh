@@ -13,7 +13,7 @@ elif [[ -d "$STUDIO/x64/plugins" ]]; then
 elif [[ -d "$STUDIO/plugins" ]]; then
   STUDIO="$STUDIO/plugins"
 fi
-JAR="$ROOT/install/se.yrell.developertools_0.1.63.jar"
+JAR="$ROOT/install/se.yrell.developertools_0.1.64.jar"
 if [[ ! -f "$JAR" ]]; then echo "Build JAR first: $JAR" >&2; exit 2; fi
 mkdir -p "$ROOT/.build/tests"
 CLASSPATH=$(find "$STUDIO" -type f -name '*.jar' | sort | paste -sd: -)
@@ -43,6 +43,8 @@ echo '== agent bootstrap =='
 java -javaagent:"$JAR" -Dbmc.ds.fastForms.enabled=false -cp "$CP" FastFormsStateRegressionTest || exit 1
 echo '== early agent message hook =='
 java -javaagent:"$JAR" -Dbmc.ds.fastForms.enabled=false -Dyrell.verifyAgentInfoHook=true -cp "$CP" MessageSuppressionRegressionTest || exit 1
+echo '== save-warning UI class verification (real BMC 26.1.1, -javaagent, -Xverify:all) =='
+java -Xverify:all -javaagent:"$JAR" -Dbmc.ds.fastForms.enabled=false -cp "$CP" AgentMessageClassloadRegressionTest || exit 1
 if ! javap -classpath "$JAR" -verbose se.yrell.developertools.ToolsActivator | grep -q 'major version: 61'; then
   echo 'Wrong Java bytecode version (expected Java 17 / major 61).' >&2
   exit 1

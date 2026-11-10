@@ -1,4 +1,4 @@
-## 0.1.63 — Message Suppressor: empty Problems dialog fix
+## 0.1.64 — Message Suppressor: empty Problems dialog fix
 
 When suppression is enabled and the configured codes are valid, an empty BMC
 InfoContext (`getMarkers()` returns null or an empty list) no longer opens a
@@ -39,7 +39,7 @@ Complete Eclipse plugin source, installable JAR, Java 17 build scripts and regre
 ## Package
 
 - `source/se.yrell.developertools/`: all 65 Java source files, plugin XML, OSGi manifest and icons.
-- `install/se.yrell.developertools_0.1.63.jar`: Windows Developer Studio plugin/optional Fast object lists Java agent.
+- `install/se.yrell.developertools_0.1.64.jar`: Windows Developer Studio plugin/optional Fast object lists Java agent.
 - `scripts/build.sh` and `scripts/test.sh`: Java 17 compilation and tests.
 - `tests/`: Java regression tests including an embedded mock MidTier HTTP server.
 - `CHANGELOG.md` / `TEST-RESULTS.txt`.
@@ -54,7 +54,7 @@ After installing this release into `~/Git/YrellDeveloperTools`, use the previous
 cd ~/Git/YrellDeveloperTools
 ./scripts/build.sh "$PWD/.build/devstudio/x64"
 ./scripts/test.sh "$PWD/.build/devstudio/x64"
-cp -v install/se.yrell.developertools_0.1.63.jar ~/Downloads/
+cp -v install/se.yrell.developertools_0.1.64.jar ~/Downloads/
 ```
 
 If the `.build` cache has been removed, use the original ZIP once:
@@ -69,11 +69,11 @@ Build requirements: Java JDK 17+, `unzip`. The build targets BMC Developer Studi
 
 1. Exit Developer Studio. Back up `x64/devstudio.ini` and the previous plugin JAR.
 2. Delete/relocate previous `se.yrell.developertools_*.jar` files from `x64/plugins`.
-3. Copy `se.yrell.developertools_0.1.63.jar` into `x64/plugins`.
+3. Copy `se.yrell.developertools_0.1.64.jar` into `x64/plugins`.
 4. If Fast object lists uses `-javaagent`, adjust the existing agent argument **after** the `-vmargs` line in `x64/devstudio.ini`:
 
    ```ini
-   -javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.63.jar
+   -javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.64.jar
    ```
 
 5. Restart with `-clean` once. Do not add a second `-vmargs` line.

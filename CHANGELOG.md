@@ -1,10 +1,14 @@
-## 0.1.63 — Suppressed warnings no longer leave an empty OK dialog (2026-11-10)
+## 0.1.64 — Prevent empty "Save successful with warnings." dialogs (2026-11-10)
 
-- Fix an observed issue with BMC's `InfoContext.getMarkers()`: it may return `null` rather than an empty list when all messages have been removed/none are available.
-- When Message Suppressor is enabled and the suppression list is valid, skip BMC's `Info.showProblems(...)` dialog for both `null` and empty marker collections.
-- Keep BMC's original dialog behavior while suppression is disabled or configuration is invalid/unavailable.
-- Preserve all unfiltered warnings, errors, and fatal messages; no AR save result or original marker list is changed.
-- Add regression tests for real BMC 26.1.1 `InfoContext` and null/empty marker contexts; all other plugin modules remain unchanged.
+- Root cause confirmed from real Developer Studio 26.1.1 bytecode: `FormEditor.saveForm` decides to invoke `Info.showProblems` based on `infoResource.getMarkers()` BEFORE the presentation-only suppression runs; `DocumentPage.internalSave` has a similar check on unfiltered `StatusInfo` entries. Filtering just `InfoContext` cannot reliably prevent this outer dialog invocation.
+- Add narrowly scoped guards to the **successful save-warning** call sites, examining their ORIGINAL warning markers/status entries. If *every* entry is a configured WARNING, BMC's modal is never opened. Mixed warnings, ERRORs and unknown markers remain visible. The FormEditor failed-save branch and DocumentPage's failed-save flag never suppress a dialog.
+- Existing `Info.open` and `Info.showProblems` presentation filtering stays in place. No AR save, status collection, source markers or validation state is modified.
+- Add regression tests for the real BMC save-class bytecode, status/marker combinations and fail-open behavior. Windows integration still required.
+
+## 0.1.63 — Null-marker InfoContext handling (2026-11-10)
+
+- A BMC `InfoContext` can return `null` rather than an empty list, so `Info.showProblems` now skips empty or null-marker dialogs when Message Suppressor is enabled. This was insufficient by itself for the "Save successful with warnings." dialog, whose caller pre-checks the unfiltered warnings.
+- Preserve all errors and unfiltered warnings; no underlying model changes.
 
 ## 0.1.62 — Message Suppressor (2026-11-10)
 

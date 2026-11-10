@@ -16,6 +16,8 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
     private static final String UI_FIELD_CLASS = "com.bmc.arsys.studio.ui.editors.form.model.UIField";
     private static final String ITEM_PROPERTY_SOURCE_CLASS = "com.bmc.arsys.studio.ui.common.properties.ItemPropertySource";
     private static final String BMC_INFO_CLASS = "com.bmc.arsys.studio.commonui.common.info.Info";
+    private static final String BMC_FORM_EDITOR_CLASS = "com.bmc.arsys.studio.ui.editors.form.FormEditor";
+    private static final String BMC_DOCUMENT_PAGE_CLASS = "com.bmc.arsys.studio.documenteditor.common.documenteditor.DocumentPage";
     private static final String FILTERING_SECTION_CLASS = "com.bmc.arsys.studio.ui.views.objectlist.FilteringSection";
     private static final String OBJECT_LIST_SORT_COMPONENT = "com.bmc.arsys.studio.commonui.common.objectlist.ObjectListComponent";
     private static final String OBJECT_LIST_SORT_CONTENT = OBJECT_LIST_SORT_COMPONENT + "$ViewContentProvider";
@@ -193,8 +195,11 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
             }
         }
 
-        if (BMC_INFO_CLASS.equals(className)
-                && !Boolean.getBoolean("se.yrell.developertools.messageSuppressionAgent.active")) {
+        if ((BMC_INFO_CLASS.equals(className) || BMC_FORM_EDITOR_CLASS.equals(className)
+                || BMC_DOCUMENT_PAGE_CLASS.equals(className))
+                && !Boolean.getBoolean("se.yrell.developertools.messageSuppressionAgent." + className + ".active")
+                && !(BMC_INFO_CLASS.equals(className)
+                     && Boolean.getBoolean("se.yrell.developertools.messageSuppressionAgent.active"))) {
             try {
                 byte[] transformed = MessageSuppressionTransformer.transform(internalClassName, currentBytes);
                 if (transformed != null) {

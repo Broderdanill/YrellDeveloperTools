@@ -1,20 +1,22 @@
-# Yrell Developer Tools 0.1.63 — Message Suppressor: empty-dialog fix
+# Yrell Developer Tools 0.1.64 — Message Suppressor save-dialog guard
 
-This maintenance release fixes an issue in 0.1.62 where suppressed warnings vanished
-but the BMC Problems dialog still appeared with an **OK** button.
+In Developer Studio 26.1.1, saving a form can display the modal
+**"Save successful with warnings."** even when Message Suppressor has removed
+all warnings from the dialog list. The reason is that BMC `FormEditor` checks
+its ORIGINAL `infoResource` markers and invokes the modal regardless of the
+subsequent filtered `InfoContext`. The shared `DocumentPage` editor has a
+corresponding check on server-returned `StatusInfo` values.
 
-BMC Developer Studio 26.1.1 `InfoContext.getMarkers()` can return `null`
-when the message context is empty. The previous suppressor skipped the modal
-only for a non-empty list of warnings that became empty after filtering;
-`null` and already-empty lists still opened an empty modal. With Message Suppressor
-enabled and a valid configured code list, those zero-message dialogs are now
-skipped at `Info.showProblems(...)` before the UI is created. When the feature
-is disabled, the original BMC behavior is retained. All remaining WARNING,
-ERROR and FATAL messages use the existing behavior, and the underlying marker
-model and AR save operations are not changed.
+0.1.64 prevents those two *successful-save warning dialogs* at their exact
+call sites if every original message is an enabled, configured **WARNING**.
+The existing user-configured codes (`5033,5384`) remain unchanged. Any
+unconfigured warning, an ERROR/FATAL, a failed-save state, an unknown marker
+shape or unavailable preferences preserve BMC's dialog. Server validation,
+actual save state and source markers are never altered.
 
-Default suppressed WARNING codes remain `5033,5384`. Warning-only suppression
-is unchanged. Run the build/test scripts as documented below.
+The patch covers Developer Studio 26.1.1 build001 as confirmed by bytecode
+regression tests, with both `-javaagent` early loading and Equinox weaving.
+Real save-dialog behavior must still be verified in Windows.
 
 # Yrell Developer Tools 0.1.62 — Message Suppressor
 
@@ -60,7 +62,7 @@ Complete Eclipse plugin source, installable JAR, Java 17 build scripts and regre
 ## Package
 
 - `source/se.yrell.developertools/`: all 67 Java source files, plugin XML, OSGi manifest and icons.
-- `install/se.yrell.developertools_0.1.63.jar`: Windows Developer Studio plugin/optional Fast object lists Java agent.
+- `install/se.yrell.developertools_0.1.64.jar`: Windows Developer Studio plugin/optional Fast object lists Java agent.
 - `scripts/build.sh` and `scripts/test.sh`: Java 17 compilation and tests.
 - `tests/`: Java regression tests including an embedded mock MidTier HTTP server.
 - `CHANGELOG.md` / `TEST-RESULTS.txt`.
@@ -75,7 +77,7 @@ After installing this release into `~/Git/YrellDeveloperTools`, use the previous
 cd ~/Git/YrellDeveloperTools
 ./scripts/build.sh "$PWD/.build/devstudio/x64"
 ./scripts/test.sh "$PWD/.build/devstudio/x64"
-cp -v install/se.yrell.developertools_0.1.63.jar ~/Downloads/
+cp -v install/se.yrell.developertools_0.1.64.jar ~/Downloads/
 ```
 
 If the `.build` cache has been removed, use the original ZIP once:
@@ -90,11 +92,11 @@ Build requirements: Java JDK 17+, `unzip`. The build targets BMC Developer Studi
 
 1. Exit Developer Studio. Back up `x64/devstudio.ini` and the previous plugin JAR.
 2. Delete/relocate previous `se.yrell.developertools_*.jar` files from `x64/plugins`.
-3. Copy `se.yrell.developertools_0.1.63.jar` into `x64/plugins`.
+3. Copy `se.yrell.developertools_0.1.64.jar` into `x64/plugins`.
 4. If Fast object lists uses `-javaagent`, adjust the existing agent argument **after** the `-vmargs` line in `x64/devstudio.ini`:
 
    ```ini
-   -javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.63.jar
+   -javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.64.jar
    ```
 
 5. Restart with `-clean` once. Do not add a second `-vmargs` line.

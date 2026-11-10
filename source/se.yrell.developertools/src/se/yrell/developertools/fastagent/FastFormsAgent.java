@@ -127,17 +127,21 @@ public final class FastFormsAgent {
         @Override
         public byte[] transform(Module module, ClassLoader loader, String className, Class<?> classBeingRedefined,
                                 ProtectionDomain protectionDomain, byte[] classfileBuffer) {
-            if ("com/bmc/arsys/studio/commonui/common/info/Info".equals(className)) {
+            if (se.yrell.developertools.internal.weaving.MessageSuppressionTransformer.supports(className)) {
                 try {
                     byte[] output = se.yrell.developertools.internal.weaving.MessageSuppressionTransformer.transform(
                             className, classfileBuffer);
                     if (output != null) {
-                        System.setProperty("se.yrell.developertools.messageSuppressionAgent.active", "true");
-                        FastFormsBridge.logAlways("Message Suppressor: BMC Info UI class hooked");
+                        System.setProperty("se.yrell.developertools.messageSuppressionAgent."
+                                + className.replace('/', '.') + ".active", "true");
+                        if ("com/bmc/arsys/studio/commonui/common/info/Info".equals(className)) {
+                            System.setProperty("se.yrell.developertools.messageSuppressionAgent.active", "true");
+                        }
+                        FastFormsBridge.logAlways("Message Suppressor: BMC presentation class hooked: " + className);
                     }
                     return output;
                 } catch (Throwable failure) {
-                    FastFormsBridge.logAlways("Message Suppressor: could not hook Info: " + failure);
+                    FastFormsBridge.logAlways("Message Suppressor: could not hook " + className + ": " + failure);
                     return null;
                 }
             }
