@@ -1,25 +1,23 @@
-Yrell Developer Tools 0.1.60 — test report (2026-11-10)
+Yrell Developer Tools 0.1.61 — test report (2026-11-10)
 Target: Java 17, BMC Developer Studio 26.1.1 build001 (supplied BMC binary JARs)
 
-Compiled: 65 Java source files, Java 17 bytecode.
-Regression tests: ALL PASSED.
+Compiled: 65 Java source files (Java 17 bytecode)
+Regression tests: ALL PASSED
 
 - AutoFieldIdRegressionTest: 5 PASS
 - DefaultNamingRegressionTest: 14 PASS
 - FastFormsStateRegressionTest: 6 PASS
-- TransformAudit: all existing weaving and Java agent targets matched
+- TransformAudit: existing weaving and Java-agent targets matched
 - MidTierCacheRegressionTest: 37 PASS
 - MidTierSsoRegressionTest: 13 PASS
 - MidTierConfigAuthorizationRegressionTest: 21 PASS
 - MidTierCommandRegressionTest: 12 PASS
-- MidTierObjectListAndShortcutRegressionTest: 19 PASS
-- ObjectListSortingRegressionTest: 13 PASS (component/provider hook and Java-agent composition)
-- ManualSuffixCleanupRegressionTest: 36 PASS (planner, collisions, separated field/view persistence, context-menu guards)
-- MidTierBrowserDomRegressionTest: 60 PASS (legacy SWT Browser DOM simulation)
-- Java agent bootstrap smoke test: PASS
+- MidTierObjectListRegressionTest: 13 PASS (BMC menu retained, hotkey UI removed, targeted legacy USER-binding cleanup)
+- ObjectListSortingRegressionTest: 13 PASS
+- ManualSuffixCleanupRegressionTest: 36 PASS
+- MidTierBrowserDomRegressionTest: 60 PASS
+- Java agent bootstrap: PASS
 
-Limitations: These are automated source-level, bytecode and synthetic behavior tests.
-Actual Windows SWT list sorting and BMC selector behavior have NOT been integration-tested.
-The feature is opt-in; BMC sorting-disabled selectors and absent columns are left alone.
-
-Manual selected-form persisted-name cleanup is not yet tested against a live AR server.
+Limits: No live Windows integration test of Eclipse binding cleanup; cleanup is best effort,
+and cannot interfere with other installed keyboard bindings. BMC Object List,
+MidTier and `__c` operations have been regression tested but require normal live testing.

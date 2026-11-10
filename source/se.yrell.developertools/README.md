@@ -1,29 +1,39 @@
-0.1.60 additionally provides two explicit saved-object cleanup actions when right-clicking a non-placeholder form in BMC Object List: Remove __c Suffix from Field Names... and Remove __c Suffix from View Names.... Preview and confirm each; job targets only selected AR server and form. Close any editor of the form first. Automatic __c suppression for new fields is unchanged.
+## 0.1.61 — Optional MidTier hotkey retired
 
-## 0.1.60 — Default object sorting
+The configurable keyboard shortcut was removed because its Eclipse binding
+validation failed with `NullPointerException` in Developer Studio. The plugin
+no longer shows or validates a hotkey in Preferences. It attempts to remove
+any previous Yrell USER binding at startup without touching unrelated keys.
+
+**Flush MidTier Object** remains available through BMC's Object List right-click
+menu; it starts directly in Eclipse Progress. The toolbar button still provides
+form, full-cache and all-pods actions. All other 0.1.60 functionality remains.
+
+0.1.61 additionally provides two explicit saved-object cleanup actions when right-clicking a non-placeholder form in BMC Object List: Remove __c Suffix from Field Names... and Remove __c Suffix from View Names.... Preview and confirm each; job targets only selected AR server and form. Close any editor of the form first. Automatic __c suppression for new fields is unchanged.
+
+## 0.1.61 — Default object sorting
 
 One opt-in global sorting preference for BMC Object List and compatible object selectors. Defaults to Modified descending, uses BMC's own `ColumnSorter`, makes the requested column visible using a component-local cloned descriptor, and does not mutate BMC stored column settings or run additional server queries. Disabled for selectors where BMC does not support sorting or the chosen field is absent. New components require an Eclipse `-clean` restart to ensure weaving hooks are installed.
 
-## 0.1.60 quick actions
+## 0.1.61 quick actions
 
-Native BMC Object List context menu integration (`com.bmc.arsys.studio.commonui.genericaction`) now shows **Flush MidTier Object** for a selected form or workflow with a known primary form, even without an open editor. The optional direct-flush hotkey can be set under **Yrell Developer Tools > MidTier Cache Flush > Quick flush shortcut**, because Eclipse General > Keys is not exposed in this Developer Studio build. Leave it blank to disable. A high contrast toilet icon is included.
 
-## 0.1.60 MidTier update
+## 0.1.61 MidTier update
 
 Safe reverse-proxy action normalization for form/full/all-pods flush, live Server List selection, and collapsible SWT Browser. See top-level CHANGELOG.md for details.
 
-## MidTier 0.1.60
+## MidTier 0.1.61
 
 RSSO and MidTier Configuration Tool have separate authentication. The embedded browser now recognizes the `Configuration Tool authorization failed` page, navigates to the genuine Configuration Tool login page, and in Automatic mode may reuse Developer Studio AR credentials only against the verified MidTier login form. Manual administrator login is available in the browser. No flush occurs without a verified cache form and cfgStok.
 
-# Yrell Developer Tools 0.1.60 — BMC Developer Studio 26.1.1
+# Yrell Developer Tools 0.1.61 — BMC Developer Studio 26.1.1
 
 Complete Eclipse plugin source, installable JAR, Java 17 build scripts and regression tests. Preserves 0.1.49 robustness fixes and 0.1.50's MidTier toolbar/preferences.
 
 ## Package
 
-- `source/se.yrell.developertools/`: all 61 Java source files, plugin XML, OSGi manifest and icons.
-- `install/se.yrell.developertools_0.1.60.jar`: Windows Developer Studio plugin/optional Fast object lists Java agent.
+- `source/se.yrell.developertools/`: all 65 Java source files, plugin XML, OSGi manifest and icons.
+- `install/se.yrell.developertools_0.1.61.jar`: Windows Developer Studio plugin/optional Fast object lists Java agent.
 - `scripts/build.sh` and `scripts/test.sh`: Java 17 compilation and tests.
 - `tests/`: Java regression tests including an embedded mock MidTier HTTP server.
 - `CHANGELOG.md` / `TEST-RESULTS.txt`.
@@ -38,7 +48,7 @@ After installing this release into `~/Git/YrellDeveloperTools`, use the previous
 cd ~/Git/YrellDeveloperTools
 ./scripts/build.sh "$PWD/.build/devstudio/x64"
 ./scripts/test.sh "$PWD/.build/devstudio/x64"
-cp -v install/se.yrell.developertools_0.1.60.jar ~/Downloads/
+cp -v install/se.yrell.developertools_0.1.61.jar ~/Downloads/
 ```
 
 If the `.build` cache has been removed, use the original ZIP once:
@@ -53,16 +63,16 @@ Build requirements: Java JDK 17+, `unzip`. The build targets BMC Developer Studi
 
 1. Exit Developer Studio. Back up `x64/devstudio.ini` and the previous plugin JAR.
 2. Delete/relocate previous `se.yrell.developertools_*.jar` files from `x64/plugins`.
-3. Copy `se.yrell.developertools_0.1.60.jar` into `x64/plugins`.
+3. Copy `se.yrell.developertools_0.1.61.jar` into `x64/plugins`.
 4. If Fast object lists uses `-javaagent`, adjust the existing agent argument **after** the `-vmargs` line in `x64/devstudio.ini`:
 
    ```ini
-   -javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.60.jar
+   -javaagent:C:/BMC/DeveloperStudio/x64/plugins/se.yrell.developertools_0.1.61.jar
    ```
 
 5. Restart with `-clean` once. Do not add a second `-vmargs` line.
 
-## MidTier Cache Flush — v0.1.60
+## MidTier Cache Flush — v0.1.61
 
 In **Window > Preferences > Yrell Developer Tools**, enable **MidTier Cache Flush**. Under this feature, add/edit a mapping for each connected AR Server (e.g. `arserver` -> `http://ars.sandbox:8080/arsys`). The server name must match the Server List on the MidTier Configuration Tool page.
 
@@ -75,13 +85,13 @@ Open a form/workflow editor, click the **toilet icon**, choose the form and clic
 3. Fetches the live `config_cache_cleanup.jsp`, checks `cfgStok`, server list and POST URL, and submits the `User`/selected form to `GoatConfigServlet?action=Cache&op_type=form_cleanup`.
 4. Interprets MidTier's exact `is cleaned !` and `doesn't exists in cache` messages as `CLEANED` and `ALREADY_EMPTY`. Other HTTP 2xx responses are **not** declared successful unless an explicit result is recognized.
 
-**Authentication (0.1.60):** In **Edit server**, choose **Automatic (default)**, **AR Server credentials**, or **RSSO / SSO browser**. Old mapping formats (v1/v2/v3) remain readable; on save, mappings are stored in v4. Automatic first probes MidTier with Java HttpClient: if the Configuration Tool login form is available, it uses the current Developer Studio AR credentials; if an RSSO/SSO login is required, it opens an embedded SWT Browser with the live RSSO login and continues with the form flush after the browser returns to the exact MidTier cache page. **RSSO / SSO browser** skips the Java AR credential path entirely. The browser retains its own HttpOnly cookies and handles IdP JavaScript or form redirects. AR credentials, session cookies and cfgStok are never stored in plugin settings. The browser does not inject or read JavaScript on identity-provider pages. The optional separate HTTPS SSO context is used by the Java preflight allowlist.
+**Authentication (0.1.61):** In **Edit server**, choose **Automatic (default)**, **AR Server credentials**, or **RSSO / SSO browser**. Old mapping formats (v1/v2/v3) remain readable; on save, mappings are stored in v4. Automatic first probes MidTier with Java HttpClient: if the Configuration Tool login form is available, it uses the current Developer Studio AR credentials; if an RSSO/SSO login is required, it opens an embedded SWT Browser with the live RSSO login and continues with the form flush after the browser returns to the exact MidTier cache page. **RSSO / SSO browser** skips the Java AR credential path entirely. The browser retains its own HttpOnly cookies and handles IdP JavaScript or form redirects. AR credentials, session cookies and cfgStok are never stored in plugin settings. The browser does not inject or read JavaScript on identity-provider pages. The optional separate HTTPS SSO context is used by the Java preflight allowlist.
 
-**Legacy SWT Browser compatibility (0.1.60):** Embedded MidTier JavaScript now targets ES5 to support Windows SWT/MSHTML (including the reported unsupported `includes()` error). URL endpoints are checked without ES6 APIs. A simulated legacy browser environment is covered by 44 JavaScript regression assertions.
+**Legacy SWT Browser compatibility (0.1.61):** Embedded MidTier JavaScript now targets ES5 to support Windows SWT/MSHTML (including the reported unsupported `includes()` error). URL endpoints are checked without ES6 APIs. A simulated legacy browser environment is covered by 44 JavaScript regression assertions.
 
 **SSO limitations:** Live browser SSO still requires verification in your Windows Developer Studio and IdP environment. Some SSO policies do not support embedded browsers or require a separate system browser. This version does not share Developer Studio AR tickets with RSSO or assume all SSO systems permit unattended login.
 
-**Automatic Field IDs (0.1.60):** Fixed a regression from 0.1.49 in which unavailable AR metadata would silently disable generated IDs. When metadata cannot be queried, the allocator now uses its previous local/current-form plus in-session collision checks (with a once-per-server/day warning). IDs are never reserved in preferences before successful assignment. Other forms and concurrent clients are not checked in this fallback mode, so global uniqueness is not guaranteed. The original developer-ID range (10-21) and ID format are preserved.
+**Automatic Field IDs (0.1.61):** Fixed a regression from 0.1.49 in which unavailable AR metadata would silently disable generated IDs. When metadata cannot be queried, the allocator now uses its previous local/current-form plus in-session collision checks (with a once-per-server/day warning). IDs are never reserved in preferences before successful assignment. Other forms and concurrent clients are not checked in this fallback mode, so global uniqueness is not guaranteed. The original developer-ID range (10-21) and ID format are preserved.
 
 **Error diagnostics:** Full exception chain is now logged in Eclipse **Error Log**, usually also in the workspace's `.metadata/.log`; sensitive POST form values, cookies and token are not deliberately logged.
 
@@ -91,6 +101,4 @@ No additional Yes/OK confirmation appears for individual forms. Full-instance fl
 
 **Validation:** Java 17 build, 14 Default naming assertions, 6 Fast Forms assertions, 32 bytecode matches and agent bootstrap; 35 MidTier regression assertions and 13 SSO assertions against embedded mock HTTP server; real downloaded MidTier login/cache HTML was parsed with the new Java parser. The Windows UI, embedded RSSO browser, and a live POST through Java HttpClient remain unverified; browser-console testing has validated the HTTP protocol but not this plugin's JVM in Windows.
 
-## 0.1.60 Quick MidTier flush
-
-Right-click a form or workflow in the BMC Object List and choose **Flush MidTier Object** to start a form-only Eclipse Progress job without an action picker. The workflow primary form is used. A configurable native Eclipse USER key binding is available under Window > Preferences > Yrell Developer Tools > MidTier Cache Flush (no global default shortcut). The toolbar button is available for the active configured AR server and opens the form/full/all-pods picker. A single configured connected server allows full/pods even when no editor is active. Progress > Details reveals the optional SSO browser.
+## 0.1.61 Quick MidTier flush

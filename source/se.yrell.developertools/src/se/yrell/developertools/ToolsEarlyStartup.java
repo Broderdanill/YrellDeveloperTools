@@ -5,7 +5,7 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.PlatformUI;
 
 import se.yrell.developertools.icons.IconPropertyButtonInstaller;
-import se.yrell.developertools.midtier.MidTierQuickFlushShortcut;
+import se.yrell.developertools.midtier.LegacyMidTierShortcutCleanup;
 import se.yrell.developertools.icons.IconCatalog;
 import se.yrell.developertools.keepalive.KeepAliveService;
 import se.yrell.developertools.inspector.ObjectInsightViewSupport;
@@ -18,9 +18,8 @@ public class ToolsEarlyStartup implements IStartup {
     public void earlyStartup() {
         try {
             Log.info("Startup initialized");
-            // Keyboard registration must survive failures in unrelated startup helpers.
-            try { MidTierQuickFlushShortcut.install(); }
-            catch (Throwable t) { Log.error("MidTier shortcut startup failed", t); }
+            // One-time, non-blocking removal of USER bindings left by 0.1.59/0.1.60.
+            LegacyMidTierShortcutCleanup.schedule();
             SwtSuffixFilter.install();
             // Post-save suffix cleanup was removed in 0.1.17. The runtime/weaving hooks
             // and SWT name filter handle __c before values are saved.

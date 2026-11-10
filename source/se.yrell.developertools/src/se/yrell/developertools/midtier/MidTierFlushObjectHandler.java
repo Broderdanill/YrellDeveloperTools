@@ -12,7 +12,7 @@ import org.eclipse.ui.handlers.HandlerUtil;
 
 import se.yrell.developertools.ToolsPreferences;
 
-/** Single-click/context menu/key command. Starts form flush directly in Progress. */
+/** Direct form flush for context menus; starts the operation in Eclipse Progress. */
 public final class MidTierFlushObjectHandler extends AbstractHandler {
     @Override public Object execute(ExecutionEvent event) throws ExecutionException {
         Shell shell = HandlerUtil.getActiveShell(event);
@@ -20,14 +20,11 @@ public final class MidTierFlushObjectHandler extends AbstractHandler {
         ISelection menuSelection = HandlerUtil.getActiveMenuSelection(event);
         ISelection selection = HandlerUtil.getCurrentSelection(event);
         IWorkbenchPart activePart = HandlerUtil.getActivePart(event);
-        // Do not execute on a stale Object List selection when another view has
-        // focus. Native key bindings apply to the workbench window as a whole.
+        // Do not execute on a stale Object List selection when another view has focus.
         if (menuSelection == null
                 && !(activePart instanceof com.bmc.arsys.studio.ui.views.objectlist.ObjectListView)
                 && !(activePart instanceof IEditorPart)) return null;
-        // A context-menu selection is authoritative; a keyboard shortcut in an
-        // active editor instead uses the active form/workflow rather than a stale
-        // Object List selection from another server.
+        // A context-menu selection is authoritative; editors use their active form.
         MidTierEditorContext context = MidTierEditorContext.captureSelected(menuSelection);
         if (context == null && activePart instanceof IEditorPart editor)
             context = MidTierEditorContext.capture(editor);
@@ -41,7 +38,7 @@ public final class MidTierFlushObjectHandler extends AbstractHandler {
         return null;
     }
 
-    /** Starts a direct form flush without a chooser, usable by Object List and hotkeys. */
+    /** Starts a direct form flush without a chooser, usable by Object List. */
     public static boolean startDirect(Shell shell, MidTierEditorContext context) {
         if (!ToolsPreferences.isMidTierCacheEnabled() || context == null || context.forms().isEmpty()) return false;
         MidTierConfiguration.Mapping target = MidTierConfiguration.lookup(

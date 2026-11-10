@@ -38,7 +38,6 @@ public class DeveloperStudioToolsPreferenceInitializer extends AbstractPreferenc
 
         store.setDefault(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED);
         store.setDefault(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, "");
-        store.setDefault(ToolsConstants.PREF_MIDTIER_QUICK_SHORTCUT, "");
 
         store.setDefault(ToolsConstants.PREF_KEEPALIVE_ENABLED, ToolsConstants.DEFAULT_KEEPALIVE_ENABLED);
         store.setDefault(ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS, ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS);

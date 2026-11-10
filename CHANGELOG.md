@@ -1,3 +1,15 @@
+## 0.1.61 (2026-11-10)
+
+- Removed the optional MidTier hotkey feature in response to Developer Studio
+  throwing `Could not verify Eclipse shortcut: NullPointerException`.
+- Removed the shortcut input and validation from Preferences, all runtime keybinding
+  installation and refresh calls, and the unused binding implementation.
+- Added one-time best-effort cleanup of former Eclipse USER bindings owned by the
+  plugin. It does not install keyboard shortcuts or modify unrelated bindings.
+  If the BMC binding service is unavailable, Developer Studio continues normally.
+- Native Object List right-click **Flush MidTier Object**, toolbar cache flush,
+  Progress, default sorting, Automatic Field IDs, and `__c` actions remain.
+
 ## 0.1.60 (2026-11-10)
 
 - Added **Remove __c Suffix from Field Names...** and **Remove __c Suffix from View Names...** to a single selected form's native BMC Object List context menu. The two actions are independent of MidTier cache configuration.

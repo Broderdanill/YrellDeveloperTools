@@ -39,7 +39,6 @@ public final class ToolsConstants {
 
     public static final String PREF_MIDTIER_CACHE_ENABLED = "midTierCache.enabled";
     public static final String PREF_MIDTIER_CACHE_MAPPINGS = "midTierCache.serverMappings";
-    public static final String PREF_MIDTIER_QUICK_SHORTCUT = "midTierCache.quickShortcut";
 
     public static final String PREF_KEEPALIVE_ENABLED = "keepAlive.enabled";
     public static final String PREF_KEEPALIVE_INTERVAL_SECONDS = "keepAlive.intervalSeconds";
