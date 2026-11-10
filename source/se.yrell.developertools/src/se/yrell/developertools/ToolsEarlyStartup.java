@@ -18,6 +18,9 @@ public class ToolsEarlyStartup implements IStartup {
     public void earlyStartup() {
         try {
             Log.info("Startup initialized");
+            // Keyboard registration must survive failures in unrelated startup helpers.
+            try { MidTierQuickFlushShortcut.install(); }
+            catch (Throwable t) { Log.error("MidTier shortcut startup failed", t); }
             SwtSuffixFilter.install();
             // Post-save suffix cleanup was removed in 0.1.17. The runtime/weaving hooks
             // and SWT name filter handle __c before values are saved.
@@ -26,7 +29,6 @@ public class ToolsEarlyStartup implements IStartup {
             IconCatalog.preloadAsync();
             NewFieldSuffixMonitor.install();
             KeepAliveService.getInstance().start();
-            MidTierQuickFlushShortcut.install();
             ObjectInsightViewSupport.openIfEnabledAsync();
         } catch (Throwable t) {
             Log.error("Startup failed", t);

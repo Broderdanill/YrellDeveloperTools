@@ -29,6 +29,14 @@ public final class ToolsConstants {
     public static final String PREF_FAST_FORMS_VALUES = "fastForms.values";
     public static final String PREF_FAST_FORMS_DEBUG = "fastForms.debug";
 
+    // One global sorting rule across all supported BMC ObjectListComponents.
+    public static final String PREF_OBJECT_SORT_ENABLED = "objectSort.enabled";
+    public static final String PREF_OBJECT_SORT_COLUMN = "objectSort.column";
+    public static final String PREF_OBJECT_SORT_DIRECTION = "objectSort.direction";
+    public static final boolean DEFAULT_OBJECT_SORT_ENABLED = false;
+    public static final String DEFAULT_OBJECT_SORT_COLUMN = "LASTUPDATETIME";
+    public static final String DEFAULT_OBJECT_SORT_DIRECTION = "DESC";
+
     public static final String PREF_MIDTIER_CACHE_ENABLED = "midTierCache.enabled";
     public static final String PREF_MIDTIER_CACHE_MAPPINGS = "midTierCache.serverMappings";
     public static final String PREF_MIDTIER_QUICK_SHORTCUT = "midTierCache.quickShortcut";

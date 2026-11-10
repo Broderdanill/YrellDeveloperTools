@@ -24,6 +24,7 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.program.Program;
 import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Group;
@@ -64,6 +65,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
     private static final String FEATURE_AUTO_IDS = "autoIds";
     private static final String FEATURE_PWA_ICONS = "pwaIcons";
     private static final String FEATURE_FAST_OBJECTS = "fastObjects";
+    private static final String FEATURE_OBJECT_SORTING = "objectSorting";
     private static final String FEATURE_MIDTIER_CACHE = "midTierCache";
     private static final String FEATURE_KEEPALIVE = "keepalive";
     private static final String FEATURE_INSIGHT = "insight";
@@ -88,6 +90,9 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
     private boolean fastObjectsEnabled;
     private String fastObjectValues;
     private boolean fastObjectDebug;
+    private boolean objectSortingEnabled;
+    private String objectSortColumn;
+    private String objectSortDirection;
     private boolean midTierCacheEnabled;
     private String midTierQuickShortcut;
     private final List<MidTierConfiguration.Mapping> midTierMappings = new ArrayList<>();
@@ -305,6 +310,18 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
                 }
             });
             addInfo(detailHost, "Values: 0=Base, 1=Overlaid, 2=Overlay, 4=Custom. Normal recommendation is 2,4. Change values, Apply, then restart Developer Studio with -clean.");
+        } else if (FEATURE_OBJECT_SORTING.equals(featureId)) {
+            addComboSetting(detailHost, "Default sort column", new String[] {"Modified", "Name", "Object type"},
+                    new String[] {"LASTUPDATETIME", "NAME", "__OBJECT_TYPE_COLUMN__"},
+                    objectSortColumn, new ValueSetter() {
+                public void set(String value) { objectSortColumn = value; }
+            });
+            addComboSetting(detailHost, "Sort direction", new String[] {"Newest / Z-A first (descending)", "Oldest / A-Z first (ascending)"},
+                    new String[] {"DESC", "ASC"}, objectSortDirection, new ValueSetter() {
+                public void set(String value) { objectSortDirection = value; }
+            });
+            addInfo(detailHost, "One rule for all object types in Object List, searches and compatible object selection dialogs. Modified is displayed when BMC provides its timestamp metadata. Lists where BMC disables sorting or omits the selected field are left unchanged. Manual column sorting continues to work.");
+            addImportant(detailHost, "Restart Developer Studio with -clean after installation so the BMC list hooks are registered before list components load. Applying a changed rule takes effect for newly loaded object lists.");
         } else if (FEATURE_MIDTIER_CACHE.equals(featureId)) {
             createMidTierSettings(detailHost);
         } else if (FEATURE_KEEPALIVE.equals(featureId)) {
@@ -333,7 +350,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         addTextSetting(parent, "Quick flush shortcut (optional)", midTierQuickShortcut, new ValueSetter() {
             public void set(String value) { midTierQuickShortcut = value; }
         });
-        addInfo(parent, "Optional direct form flush from Object List or form/workflow editor; no dialog. Example: CTRL+ALT+F8. Leave blank to disable. Combinations need CTRL+ALT (optional SHIFT) plus A-Z or F1-F12. Registered Eclipse shortcut conflicts are checked when saving.");
+        addInfo(parent, "Optional direct form flush from Object List or form/workflow editor; no dialog. Example: CTRL+ALT+F8. Leave blank to disable. Combinations need CTRL+ALT (optional SHIFT) plus A-Z or F1-F12. The shortcut is registered as an Eclipse USER binding when saved; conflicts are checked before activation.");
         final Table mappingsTable = new Table(parent, SWT.BORDER | SWT.FULL_SELECTION | SWT.SINGLE);
         mappingsTable.setHeaderVisible(true);
         mappingsTable.setLinesVisible(true);
@@ -427,6 +444,30 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         });
     }
 
+    private void addComboSetting(Composite parent, String labelText, String[] labels, String[] values,
+                                 String selected, final ValueSetter setter) {
+        Composite row = new Composite(parent, SWT.NONE);
+        row.setLayout(new GridLayout(2, false));
+        row.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
+        Label label = new Label(row, SWT.NONE);
+        label.setText(labelText);
+        GridData ld = new GridData(SWT.LEFT, SWT.CENTER, false, false);
+        ld.widthHint = 220;
+        label.setLayoutData(ld);
+        final Combo combo = new Combo(row, SWT.DROP_DOWN | SWT.READ_ONLY);
+        combo.setItems(labels);
+        combo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        int index = 0;
+        for (int i = 0; i < values.length; i++) if (values[i].equals(selected)) { index = i; break; }
+        combo.select(index);
+        combo.addSelectionListener(new SelectionAdapter() {
+            @Override public void widgetSelected(SelectionEvent e) {
+                int i = combo.getSelectionIndex();
+                if (i >= 0 && i < values.length) setter.set(values[i]);
+            }
+        });
+    }
+
     private void addCheckSetting(Composite parent, String text, boolean value, final BooleanSetter setter) {
         Button button = new Button(parent, SWT.CHECK);
         button.setText(text);
@@ -499,6 +540,9 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         fastObjectsEnabled = ToolsConstants.DEFAULT_FAST_FORMS_ENABLED;
         fastObjectValues = ToolsConstants.DEFAULT_FAST_FORMS_VALUES;
         fastObjectDebug = ToolsConstants.DEFAULT_FAST_FORMS_DEBUG;
+        objectSortingEnabled = ToolsConstants.DEFAULT_OBJECT_SORT_ENABLED;
+        objectSortColumn = ToolsConstants.DEFAULT_OBJECT_SORT_COLUMN;
+        objectSortDirection = ToolsConstants.DEFAULT_OBJECT_SORT_DIRECTION;
         midTierCacheEnabled = ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED;
         midTierQuickShortcut = "";
         midTierMappings.clear();
@@ -602,6 +646,9 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
             store.setValue(ToolsConstants.PREF_FAST_FORMS_ENABLED, fastObjectsEnabled);
             store.setValue(ToolsConstants.PREF_FAST_FORMS_VALUES, trimOrDefault(fastObjectValues, ToolsConstants.DEFAULT_FAST_FORMS_VALUES));
             store.setValue(ToolsConstants.PREF_FAST_FORMS_DEBUG, fastObjectDebug);
+            store.setValue(ToolsConstants.PREF_OBJECT_SORT_ENABLED, objectSortingEnabled);
+            store.setValue(ToolsConstants.PREF_OBJECT_SORT_COLUMN, objectSortColumn);
+            store.setValue(ToolsConstants.PREF_OBJECT_SORT_DIRECTION, objectSortDirection);
             store.setValue(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, midTierCacheEnabled);
             store.setValue(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, MidTierConfiguration.encode(midTierMappings));
             store.setValue(ToolsConstants.PREF_MIDTIER_QUICK_SHORTCUT, MidTierQuickFlushShortcut.normalize(midTierQuickShortcut));
@@ -625,6 +672,9 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         node.putBoolean(ToolsConstants.PREF_FAST_FORMS_ENABLED, fastObjectsEnabled);
         node.put(ToolsConstants.PREF_FAST_FORMS_VALUES, trimOrDefault(fastObjectValues, ToolsConstants.DEFAULT_FAST_FORMS_VALUES));
         node.putBoolean(ToolsConstants.PREF_FAST_FORMS_DEBUG, fastObjectDebug);
+        node.putBoolean(ToolsConstants.PREF_OBJECT_SORT_ENABLED, objectSortingEnabled);
+        node.put(ToolsConstants.PREF_OBJECT_SORT_COLUMN, objectSortColumn);
+        node.put(ToolsConstants.PREF_OBJECT_SORT_DIRECTION, objectSortDirection);
         node.putBoolean(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, midTierCacheEnabled);
         node.put(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, MidTierConfiguration.encode(midTierMappings));
         node.put(ToolsConstants.PREF_MIDTIER_QUICK_SHORTCUT, MidTierQuickFlushShortcut.normalize(midTierQuickShortcut));
@@ -643,6 +693,8 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
 
     private void postSaveActions() {
         KeepAliveService.getInstance().reconfigure();
+        // Persist the selected USER binding in Eclipse immediately, without restart.
+        MidTierQuickFlushShortcut.refresh();
         ToolsPreferences.writeFastFormsAgentProperties(fastObjectsEnabled,
                 trimOrDefault(fastObjectValues, ToolsConstants.DEFAULT_FAST_FORMS_VALUES), fastObjectDebug);
         if (insightEnabled) {
@@ -667,6 +719,9 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         fastObjectsEnabled = getBoolean(store, ToolsConstants.PREF_FAST_FORMS_ENABLED, ToolsConstants.DEFAULT_FAST_FORMS_ENABLED);
         fastObjectValues = getString(store, ToolsConstants.PREF_FAST_FORMS_VALUES, ToolsConstants.DEFAULT_FAST_FORMS_VALUES);
         fastObjectDebug = getBoolean(store, ToolsConstants.PREF_FAST_FORMS_DEBUG, ToolsConstants.DEFAULT_FAST_FORMS_DEBUG);
+        objectSortingEnabled = getBoolean(store, ToolsConstants.PREF_OBJECT_SORT_ENABLED, ToolsConstants.DEFAULT_OBJECT_SORT_ENABLED);
+        objectSortColumn = getString(store, ToolsConstants.PREF_OBJECT_SORT_COLUMN, ToolsConstants.DEFAULT_OBJECT_SORT_COLUMN);
+        objectSortDirection = getString(store, ToolsConstants.PREF_OBJECT_SORT_DIRECTION, ToolsConstants.DEFAULT_OBJECT_SORT_DIRECTION);
         midTierCacheEnabled = getBoolean(store, ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED);
         midTierQuickShortcut = getString(store, ToolsConstants.PREF_MIDTIER_QUICK_SHORTCUT, "");
         midTierMappings.clear();
@@ -739,6 +794,9 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         features.put(FEATURE_FAST_OBJECTS, new Feature(FEATURE_FAST_OBJECTS, "Fast object lists",
                 "Filters large object lists to selected Customization Type values such as Overlay and Custom.",
                 "Requires -javaagent and a Developer Studio restart with -clean to affect the initial server request."));
+        features.put(FEATURE_OBJECT_SORTING, new Feature(FEATURE_OBJECT_SORTING, "Default object sorting",
+                "Uses one default sort rule for all supported object lists and object pickers.",
+                "Restart Developer Studio with -clean after installation. Existing lists may need to be reopened."));
         features.put(FEATURE_MIDTIER_CACHE, new Feature(FEATURE_MIDTIER_CACHE, "MidTier Cache Flush",
                 "Flush MidTier cache for the current form or workflow, a complete instance, or all pods.",
                 "No restart required for settings. Reopen an editor if the toolbar visibility does not update immediately."));
@@ -765,6 +823,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         if (FEATURE_AUTO_IDS.equals(id)) return autoIdsEnabled;
         if (FEATURE_PWA_ICONS.equals(id)) return pwaIconsEnabled;
         if (FEATURE_FAST_OBJECTS.equals(id)) return fastObjectsEnabled;
+        if (FEATURE_OBJECT_SORTING.equals(id)) return objectSortingEnabled;
         if (FEATURE_MIDTIER_CACHE.equals(id)) return midTierCacheEnabled;
         if (FEATURE_KEEPALIVE.equals(id)) return keepAliveEnabled;
         if (FEATURE_INSIGHT.equals(id)) return insightEnabled;
@@ -780,6 +839,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         else if (FEATURE_AUTO_IDS.equals(id)) autoIdsEnabled = enabled;
         else if (FEATURE_PWA_ICONS.equals(id)) pwaIconsEnabled = enabled;
         else if (FEATURE_FAST_OBJECTS.equals(id)) fastObjectsEnabled = enabled;
+        else if (FEATURE_OBJECT_SORTING.equals(id)) objectSortingEnabled = enabled;
         else if (FEATURE_MIDTIER_CACHE.equals(id)) midTierCacheEnabled = enabled;
         else if (FEATURE_KEEPALIVE.equals(id)) keepAliveEnabled = enabled;
         else if (FEATURE_INSIGHT.equals(id)) insightEnabled = enabled;

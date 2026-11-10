@@ -1,11 +1,24 @@
-## 0.1.58 (2026-11-09)
+## 0.1.60 (2026-11-10)
+
+- Added **Remove __c Suffix from Field Names...** and **Remove __c Suffix from View Names...** to a single selected form's native BMC Object List context menu. The two actions are independent of MidTier cache configuration.
+- Preview exact proposed name changes before confirmation; preserve existing case-insensitive collision checks. The operation never renames the form itself, never changes the other category, and never runs automatically or as a bulk action across forms.
+- Perform server reads/writes in user-visible Eclipse Progress jobs. Refuse to modify a form open in an editor; skip ambiguous/colliding target names; stop on server write failure, report partial changes, and log diagnostics. This is a manual action for existing saved names, separate from automatic __c removal during new object creation.
+- Added explicit suffix planner/menu regression tests. Needs real Developer Studio 26.1.1/AR Server integration test for persistence and menu visibility.
+
+
+- Added one global, optional **Default object sorting** setting independent of Fast object lists. The rule has a field (**Modified** default, Name, or Object type) and direction (**descending** default, or ascending), applying to compatible object types without individual mappings.
+- Hooked BMC's shared `ObjectListComponent` and its `ViewContentProvider` via the existing OSGi weaving service. The plugin uses BMC's timestamp-aware `ColumnSorter` after columns load, rather than another comparator or another AR query. Applied to Object List and shared selectors when sorting is enabled.
+- The selected sorting column is made visible **only in the current component** by cloning BMC's `ColumnInformation`; this does not overwrite BMC's persisted column configuration. Unsupported selectors or lists missing the selected metadata are unchanged.
+- Added tests for the BMC 26.1.1 bytecode hooks and composition with the existing Fast Forms Java agent. Existing tests retained. Live Windows UI integration still requires confirmation.
+
+## 0.1.59 (2026-11-09)
 
 - Fixed missing context-menu action in **BMC Object List** by registering BMC's own `com.bmc.arsys.studio.commonui.genericaction` provider rather than relying on Eclipse `popup:any` contributions. The action uses the exact one-item selection and launches an immediate, non-blocking Progress job without opening a chooser.
 - Replaced blurry toilet toolbar icons with a simplified high-contrast toilet silhouette in 16/24/32 px PNG, plus editable SVG source.
 - Added an optional, per-plugin shortcut setting under MidTier Cache Flush preferences because Developer Studio does not expose General > Keys. No default is assigned. Validates against registered Eclipse bindings to reduce collisions and only dispatches in form/workflow editors or Object List with an unambiguous selection.
 - Added static native extension registration and keyboard matching tests; all prior regressions retained.
 
-## 0.1.58 — contextual quick flush, Eclipse Progress, and older SWT Browser support (2026-11-09)
+## 0.1.59 — contextual quick flush, Eclipse Progress, and older SWT Browser support (2026-11-09)
 
 - Added **Flush MidTier Object** to the context menu of AR Form and workflow objects, and as an unbound Eclipse command for user-selected shortcuts in Preferences > General > Keys. Both submit a form flush directly without opening the action picker or requesting a second confirmation. For workflow objects use the primary form only. The popup uses the actual context-menu selection, not a stale open editor.
 - Extended the main-toolbar toilet icon visibility to configured connected AR server selection in Object List, not only an active form/workflow editor. A unique configured connected server is also supported when no object is open; its toolbar picker offers full cache/all pods only. Multiple connections without a unique target never guess.
@@ -15,7 +28,7 @@
 - Added cancellable browser coordination to avoid a pending SSO page submitting a flush after the Progress Job was canceled.
 - Tested Java 17 compilation against supplied Developer Studio 26.1.1 build001 binaries, existing ASM and -javaagent audit, HTTP mock tests and ES5 browser simulation. Real Windows/SWT Browser and SSO integration still needs a live test.
 
-## 0.1.58 — MidTier form actions, server selection and collapsible browser (2026-11-09)
+## 0.1.59 — MidTier form actions, server selection and collapsible browser (2026-11-09)
 
 - Correct the SWT Browser `ERROR: Unexpected form action` problem for MidTier Configuration Tool served behind a reverse proxy / TLS terminator. Validate the original BMC servlet path, POST method, `cfgStok` and mode-specific query parameters, then rewrite the form action to the configured MidTier origin before submission. Never submit a token to a foreign or internal action origin.
 - Apply the same safe action normalization for selected-form flush, full MidTier flush and all-pods flush.
@@ -26,7 +39,7 @@
 
 # Changelog
 
-## 0.1.58 — legacy SWT Browser JavaScript compatibility (2026-11-09)
+## 0.1.59 — legacy SWT Browser JavaScript compatibility (2026-11-09)
 
 - Fixed `org.eclipse.swt.SWTException: Property or method 'includes' is not supported` when the Windows SWT Browser uses MSHTML / an older Internet Explorer JavaScript engine.
 - Replaced JavaScript `String.includes`, `Array.from`, the `URL` constructor and `URL.searchParams` throughout the dynamically injected MidTier browser scripts with ES5-compatible alternatives.
@@ -104,3 +117,12 @@
 ## 0.1.49
 
 See previous release history included in the original archive. Changes carried forward: strictly column-only Default naming; safe __c fallback; improved Fast object lists instrumentation; asynchronous Object Insight; safer Keepalive, Icon Helper, automatic field ID allocation and Remove from view.
+
+
+## 0.1.59 (2026-11-10)
+- Fix: configurable MidTier quick-flush shortcut now uses Eclipse `IBindingService.savePreferences()` with a USER KeyBinding in the active workbench scheme and window context.
+- Registered shortcut applies immediately when saved and at startup; unrelated Eclipse/BMC bindings are retained. No binding exists until explicitly configured.
+- Startup: shortcut initialization isolated from other plugin startup features.
+- Safety: keyboard command does not act on stale Object List selections if another view is active.
+- Review only: Fast object lists remain unchanged. Server-filtered objects cannot be reliably displayed by checkboxes alone without requerying BMC providers.
+- Review only: keepalive remains unchanged pending evidence from API logs and UI thread dumps; `verifyUser()` may not warm metadata/cache or recover a stale connection.

@@ -119,6 +119,23 @@ public final class ToolsPreferences {
 
 
 
+    public static boolean isObjectSortEnabled() {
+        return node().getBoolean(ToolsConstants.PREF_OBJECT_SORT_ENABLED,
+                ToolsConstants.DEFAULT_OBJECT_SORT_ENABLED);
+    }
+
+    public static String getObjectSortColumn() {
+        String value = node().get(ToolsConstants.PREF_OBJECT_SORT_COLUMN,
+                ToolsConstants.DEFAULT_OBJECT_SORT_COLUMN);
+        return "NAME".equals(value) || "__OBJECT_TYPE_COLUMN__".equals(value)
+                ? value : ToolsConstants.DEFAULT_OBJECT_SORT_COLUMN;
+    }
+
+    public static boolean isObjectSortDescending() {
+        return !"ASC".equals(node().get(ToolsConstants.PREF_OBJECT_SORT_DIRECTION,
+                ToolsConstants.DEFAULT_OBJECT_SORT_DIRECTION));
+    }
+
     public static File fastFormsAgentPropertiesFile() {
         String home = System.getProperty("user.home");
         if (home == null || home.trim().length() == 0) {

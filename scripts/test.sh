@@ -13,13 +13,13 @@ elif [[ -d "$STUDIO/x64/plugins" ]]; then
 elif [[ -d "$STUDIO/plugins" ]]; then
   STUDIO="$STUDIO/plugins"
 fi
-JAR="$ROOT/install/se.yrell.developertools_0.1.58.jar"
+JAR="$ROOT/install/se.yrell.developertools_0.1.60.jar"
 if [[ ! -f "$JAR" ]]; then echo "Build JAR first: $JAR" >&2; exit 2; fi
 mkdir -p "$ROOT/.build/tests"
 CLASSPATH=$(find "$STUDIO" -type f -name '*.jar' | sort | paste -sd: -)
 CP="$JAR:$ROOT/.build/tests:$CLASSPATH"
 if ! javac -proc:none --release 17 -encoding UTF-8 -cp "$CP" -d "$ROOT/.build/tests" "$ROOT/tests/"*.java; then exit 1; fi
-for test in AutoFieldIdRegressionTest DefaultNamingRegressionTest FastFormsStateRegressionTest TransformAudit MidTierCacheRegressionTest MidTierSsoRegressionTest MidTierConfigAuthorizationRegressionTest MidTierCommandRegressionTest MidTierObjectListAndShortcutRegressionTest; do
+for test in AutoFieldIdRegressionTest DefaultNamingRegressionTest FastFormsStateRegressionTest TransformAudit MidTierCacheRegressionTest MidTierSsoRegressionTest MidTierConfigAuthorizationRegressionTest MidTierCommandRegressionTest MidTierObjectListAndShortcutRegressionTest ObjectListSortingRegressionTest ManualSuffixCleanupRegressionTest; do
   echo "== $test =="
   if [[ "$test" == "MidTierCacheRegressionTest" ]]; then
     java -cp "$CP" "$test" || exit 1

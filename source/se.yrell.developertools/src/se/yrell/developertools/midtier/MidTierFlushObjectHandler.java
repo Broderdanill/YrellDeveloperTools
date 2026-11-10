@@ -20,6 +20,11 @@ public final class MidTierFlushObjectHandler extends AbstractHandler {
         ISelection menuSelection = HandlerUtil.getActiveMenuSelection(event);
         ISelection selection = HandlerUtil.getCurrentSelection(event);
         IWorkbenchPart activePart = HandlerUtil.getActivePart(event);
+        // Do not execute on a stale Object List selection when another view has
+        // focus. Native key bindings apply to the workbench window as a whole.
+        if (menuSelection == null
+                && !(activePart instanceof com.bmc.arsys.studio.ui.views.objectlist.ObjectListView)
+                && !(activePart instanceof IEditorPart)) return null;
         // A context-menu selection is authoritative; a keyboard shortcut in an
         // active editor instead uses the active form/workflow rather than a stale
         // Object List selection from another server.

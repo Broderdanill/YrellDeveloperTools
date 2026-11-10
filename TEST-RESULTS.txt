@@ -1,77 +1,25 @@
-Yrell Developer Tools 0.1.58 – Developer Studio 26.1.1 build001
+Yrell Developer Tools 0.1.60 — test report (2026-11-10)
+Target: Java 17, BMC Developer Studio 26.1.1 build001 (supplied BMC binary JARs)
 
-Build: Java 17, 61 source files, successful.
+Compiled: 65 Java source files, Java 17 bytecode.
+Regression tests: ALL PASSED.
 
-== AutoFieldIdRegressionTest ==
-[Yrell Developer Tools] WARN Auto Field ID metadata verification unavailable for no-metadata-a (No readable ARServerUser or IEntryStore context). Using current-form and in-session collision checks. IDs on other forms or in concurrent clients cannot be verified.
-[Yrell Developer Tools] WARN Auto Field ID metadata verification unavailable for no-metadata-b (No readable ARServerUser or IEntryStore context). Using current-form and in-session collision checks. IDs on other forms or in concurrent clients cannot be verified.
-[Yrell Developer Tools] WARN Auto Field ID metadata verification unavailable for no-metadata-c (No readable ARServerUser or IEntryStore context). Using current-form and in-session collision checks. IDs on other forms or in concurrent clients cannot be verified.
-[Yrell Developer Tools] WARN Auto Field ID metadata verification unavailable for no-metadata-d (No readable ARServerUser or IEntryStore context). Using current-form and in-session collision checks. IDs on other forms or in concurrent clients cannot be verified.
-[Yrell Developer Tools] WARN Auto Field ID metadata verification unavailable for no-metadata-e (No readable ARServerUser or IEntryStore context). Using current-form and in-session collision checks. IDs on other forms or in concurrent clients cannot be verified.
-Auto Field ID regression tests: 5 PASS
-== DefaultNamingRegressionTest ==
-PASS: 14 Default naming assertions
-== FastFormsStateRegressionTest ==
-PASS: 6 Fast Forms checkbox state assertions
-== TransformAudit ==
-STATIC UIFieldFactoryTransformer on com/bmc/arsys/studio/ui/editors/form/model/UIFieldFactory: MATCH (46869 bytes)
-STATIC AddFieldToViewCommandTransformer on com/bmc/arsys/studio/ui/editors/form/commands/AddFieldToViewCommand: MATCH (16132 bytes)
-STATIC UITableFieldTransformer on com/bmc/arsys/studio/ui/editors/form/model/UITableField: MATCH (42784 bytes)
-STATIC FormHelperNameTransformer on com/bmc/arsys/studio/model/internal/helper/FormHelper: MATCH (59260 bytes)
-STATIC UIFieldPropertyDescriptorTransformer on com/bmc/arsys/studio/ui/editors/form/model/UIField: MATCH (85923 bytes)
-STATIC ItemPropertySourceTransformer on com/bmc/arsys/studio/ui/common/properties/ItemPropertySource: MATCH (5367 bytes)
-STATIC ObjectListSearchTransformer on com/bmc/arsys/studio/ui/views/objectlist/FilteringSection: MATCH (29480 bytes)
-STATIC WorkflowFieldMapLayoutTransformer on com/bmc/arsys/studio/ui/common/fieldmap/FieldMapWidget: MATCH (38289 bytes)
-WEAVING-FAST com/bmc/arsys/studio/model/internal/providers/ARDynamicNamedListProvider: MATCH (16255 bytes)
-WEAVING-FAST com/bmc/arsys/studio/model/internal/providers/ARBaseNamedListProvider: MATCH (41280 bytes)
-WEAVING-FAST com/bmc/arsys/studio/model/internal/providers/FormListProvider: MATCH (33786 bytes)
-WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListCheckboxFilterManager$PropertyTypeCheckBoxConfiguration: MATCH (2182 bytes)
-WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/FilteringSection: MATCH (29352 bytes)
-WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/FilteringSection$8: MATCH (2462 bytes)
-WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListView: MATCH (79231 bytes)
-WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListView$12: MATCH (3703 bytes)
-WEAVING-FAST com/bmc/arsys/studio/commonui/common/objectlist/ObjectListComponent: MATCH (33402 bytes)
-WEAVING-FAST com/bmc/arsys/studio/commonui/common/objectlist/OverlayObjectListFilter: MATCH (1794 bytes)
-WEAVING-FAST com/bmc/arsys/studio/ui/views/objectlist/PropertyFilter: MATCH (1421 bytes)
-WEAVING-FAST com/bmc/arsys/studio/model/internal/providers/SQLCommands: MATCH (29002 bytes)
-[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.model.internal.providers.ARDynamicNamedListProvider
-AGENT-FAST com/bmc/arsys/studio/model/internal/providers/ARDynamicNamedListProvider: MATCH (16256 bytes)
-[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.model.internal.providers.ARBaseNamedListProvider
-AGENT-FAST com/bmc/arsys/studio/model/internal/providers/ARBaseNamedListProvider: MATCH (41281 bytes)
-[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.model.internal.providers.FormListProvider
-AGENT-FAST com/bmc/arsys/studio/model/internal/providers/FormListProvider: MATCH (33787 bytes)
-[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.ui.views.objectlist.ObjectListCheckboxFilterManager$PropertyTypeCheckBoxConfiguration
-AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListCheckboxFilterManager$PropertyTypeCheckBoxConfiguration: MATCH (2183 bytes)
-[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.ui.views.objectlist.FilteringSection
-AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/FilteringSection: MATCH (29353 bytes)
-[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.ui.views.objectlist.FilteringSection$8
-AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/FilteringSection$8: MATCH (2463 bytes)
-[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.ui.views.objectlist.ObjectListView
-AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListView: MATCH (79232 bytes)
-[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.ui.views.objectlist.ObjectListView$12
-AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/ObjectListView$12: MATCH (3704 bytes)
-[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.commonui.common.objectlist.ObjectListComponent
-AGENT-FAST com/bmc/arsys/studio/commonui/common/objectlist/ObjectListComponent: MATCH (33403 bytes)
-[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.commonui.common.objectlist.OverlayObjectListFilter
-AGENT-FAST com/bmc/arsys/studio/commonui/common/objectlist/OverlayObjectListFilter: MATCH (1795 bytes)
-[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.ui.views.objectlist.PropertyFilter
-AGENT-FAST com/bmc/arsys/studio/ui/views/objectlist/PropertyFilter: MATCH (1422 bytes)
-[Yrell Developer Tools FastForms Agent] transformed com.bmc.arsys.studio.model.internal.providers.SQLCommands
-AGENT-FAST com/bmc/arsys/studio/model/internal/providers/SQLCommands: MATCH (29003 bytes)
-== MidTierCacheRegressionTest ==
-MidTier cache regression tests: 37 PASS (embedded mock HTTP server)
-== MidTierSsoRegressionTest ==
-MidTier SSO tests: 13 PASS
-== MidTierConfigAuthorizationRegressionTest ==
-MidTier Configuration Tool authorization tests: 21 PASS
-== MidTierCommandRegressionTest ==
-MidTier toolbar/command assertions: 12 PASS
-== MidTierObjectListAndShortcutRegressionTest ==
-Object List + hotkey tests: 15 PASS
-== MidTierBrowserDomRegressionTest ==
-Legacy SWT Browser ES5 DOM simulation: 60 PASS
-== agent bootstrap ==
-OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-[Yrell Developer Tools FastForms Agent] loaded v10; enabled=false, values=2,4, logFile=/tmp/devstudio-fastforms.log, bootstrapBridge=bridge-only
-PASS: 6 Fast Forms checkbox state assertions
-ALL TESTS PASSED
+- AutoFieldIdRegressionTest: 5 PASS
+- DefaultNamingRegressionTest: 14 PASS
+- FastFormsStateRegressionTest: 6 PASS
+- TransformAudit: all existing weaving and Java agent targets matched
+- MidTierCacheRegressionTest: 37 PASS
+- MidTierSsoRegressionTest: 13 PASS
+- MidTierConfigAuthorizationRegressionTest: 21 PASS
+- MidTierCommandRegressionTest: 12 PASS
+- MidTierObjectListAndShortcutRegressionTest: 19 PASS
+- ObjectListSortingRegressionTest: 13 PASS (component/provider hook and Java-agent composition)
+- ManualSuffixCleanupRegressionTest: 36 PASS (planner, collisions, separated field/view persistence, context-menu guards)
+- MidTierBrowserDomRegressionTest: 60 PASS (legacy SWT Browser DOM simulation)
+- Java agent bootstrap smoke test: PASS
+
+Limitations: These are automated source-level, bytecode and synthetic behavior tests.
+Actual Windows SWT list sorting and BMC selector behavior have NOT been integration-tested.
+The feature is opt-in; BMC sorting-disabled selectors and absent columns are left alone.
+
+Manual selected-form persisted-name cleanup is not yet tested against a live AR server.

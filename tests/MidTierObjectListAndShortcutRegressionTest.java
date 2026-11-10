@@ -31,9 +31,14 @@ public class MidTierObjectListAndShortcutRegressionTest {
         check(providerFound,"native BMC Object List generic action provider declared");
         check(Class.forName("se.yrell.developertools.midtier.MidTierObjectListActionProvider") != null, "native provider in plugin JAR");
         String plugin = Files.readString(xmlFile);
-        check(!plugin.contains("org.eclipse.ui.bindings"),"no collision-prone default shortcut");
+        check(!plugin.contains("org.eclipse.ui.bindings"),"no collision-prone SYSTEM shortcut");
         check(plugin.contains("icons/toilet_16.png"),"shared toilet icon registered");
         check(MidTierQuickFlushShortcut.normalize(" ctrl+alt+f8 ").equals("CTRL+ALT+F8"), "shortcut normalization");
+        check(MidTierQuickFlushShortcut.COMMAND_ID.equals("se.yrell.developertools.commands.midTierFlushObject"), "binding targets direct-flush handler");
+        String shortcutCode = Files.readString(Path.of("source/se.yrell.developertools/src/se/yrell/developertools/midtier/MidTierQuickFlushShortcut.java"));
+        check(shortcutCode.contains("service.savePreferences(activeScheme"), "native Eclipse user-binding persistence");
+        check(shortcutCode.contains("Binding.USER"), "uses USER scope, not global SYSTEM default");
+        check(!shortcutCode.contains("display.addFilter"), "no fragile global SWT key filter");
         check(MidTierQuickFlushShortcut.validate("") == null,"disabled by default");
         check(MidTierQuickFlushShortcut.validate("CTRL+ALT+F8") == null,"valid function key");
         check(MidTierQuickFlushShortcut.validate("CTRL+ALT+SHIFT+F12") == null,"valid modifier combination");

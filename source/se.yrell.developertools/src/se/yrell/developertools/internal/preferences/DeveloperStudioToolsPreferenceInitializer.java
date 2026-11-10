@@ -32,6 +32,9 @@ public class DeveloperStudioToolsPreferenceInitializer extends AbstractPreferenc
         store.setDefault(ToolsConstants.PREF_FAST_FORMS_ENABLED, ToolsConstants.DEFAULT_FAST_FORMS_ENABLED);
         store.setDefault(ToolsConstants.PREF_FAST_FORMS_VALUES, ToolsConstants.DEFAULT_FAST_FORMS_VALUES);
         store.setDefault(ToolsConstants.PREF_FAST_FORMS_DEBUG, ToolsConstants.DEFAULT_FAST_FORMS_DEBUG);
+        store.setDefault(ToolsConstants.PREF_OBJECT_SORT_ENABLED, ToolsConstants.DEFAULT_OBJECT_SORT_ENABLED);
+        store.setDefault(ToolsConstants.PREF_OBJECT_SORT_COLUMN, ToolsConstants.DEFAULT_OBJECT_SORT_COLUMN);
+        store.setDefault(ToolsConstants.PREF_OBJECT_SORT_DIRECTION, ToolsConstants.DEFAULT_OBJECT_SORT_DIRECTION);
 
         store.setDefault(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED);
         store.setDefault(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, "");

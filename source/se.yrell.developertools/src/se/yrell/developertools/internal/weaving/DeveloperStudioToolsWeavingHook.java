@@ -16,6 +16,8 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
     private static final String UI_FIELD_CLASS = "com.bmc.arsys.studio.ui.editors.form.model.UIField";
     private static final String ITEM_PROPERTY_SOURCE_CLASS = "com.bmc.arsys.studio.ui.common.properties.ItemPropertySource";
     private static final String FILTERING_SECTION_CLASS = "com.bmc.arsys.studio.ui.views.objectlist.FilteringSection";
+    private static final String OBJECT_LIST_SORT_COMPONENT = "com.bmc.arsys.studio.commonui.common.objectlist.ObjectListComponent";
+    private static final String OBJECT_LIST_SORT_CONTENT = OBJECT_LIST_SORT_COMPONENT + "$ViewContentProvider";
     private static final String FIELD_MAP_WIDGET_CLASS = "com.bmc.arsys.studio.ui.common.fieldmap.FieldMapWidget";
     private static final String BMC_PREFIX = "com.bmc.arsys.studio.";
     private static final String RUNTIME_PACKAGE = "se.yrell.developertools.runtime";
@@ -187,6 +189,23 @@ public class DeveloperStudioToolsWeavingHook implements WeavingHook {
             } catch (Throwable t) {
                 Log.error("Failed to weave workflow field-map layout hook into " + FIELD_MAP_WIDGET_CLASS + ".", t);
                 // Fail open: a helper must not abort BMC bundle class loading.
+            }
+        }
+
+        if (OBJECT_LIST_SORT_COMPONENT.equals(className) || OBJECT_LIST_SORT_CONTENT.equals(className)) {
+            try {
+                // Install the hook even when disabled: users may enable sorting later.
+                // Runtime checks the preference each time. Separate from Fast Forms.
+                byte[] transformed = ObjectListSortingTransformer.transform(internalClassName, currentBytes);
+                if (transformed != null) {
+                    currentBytes = transformed;
+                    modified = true;
+                    Log.info("Object list default sorting hook applied to " + className + ".");
+                } else {
+                    Log.warn("Object list sorting bytecode did not match " + className + ".");
+                }
+            } catch (Throwable t) {
+                Log.error("Could not weave object list default sorting into " + className + ".", t);
             }
         }
 
