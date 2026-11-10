@@ -31,15 +31,19 @@ public final class MidTierFlushObjectHandler extends AbstractHandler {
             MessageDialog.openInformation(shell, "MidTier cache", "Select a form or a workflow with a primary form.");
             return null;
         }
+        if (!startDirect(shell, context))
+            MessageDialog.openInformation(shell, "MidTier cache", "No MidTier URL configured for " + context.server());
+        return null;
+    }
+
+    /** Starts a direct form flush without a chooser, usable by Object List and hotkeys. */
+    public static boolean startDirect(Shell shell, MidTierEditorContext context) {
+        if (!ToolsPreferences.isMidTierCacheEnabled() || context == null || context.forms().isEmpty()) return false;
         MidTierConfiguration.Mapping target = MidTierConfiguration.lookup(
                 ToolsPreferences.getMidTierServerMappings(), context.server());
-        if (target == null) {
-            MessageDialog.openInformation(shell, "MidTier cache", "No MidTier URL configured for " + context.server());
-            return null;
-        }
-        // Workflow objects can reference several forms. The stored primary form is
-        // authoritative; we never silently flush all associated forms.
+        if (target == null) return false;
+        // Workflow primary form is first. Never flush every associated form implicitly.
         MidTierFlushJob.start(shell, context, target, 0, context.forms().get(0));
-        return null;
+        return true;
     }
 }

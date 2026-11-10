@@ -77,6 +77,11 @@
             class="se.yrell.developertools.viewactions.RemoveFromViewPropertyTester"/>
    </extension>
 
+   <!-- BMC's Object List context menu is populated through its own action providers. -->
+   <extension point="com.bmc.arsys.studio.commonui.genericaction">
+      <genericActionProvider class="se.yrell.developertools.midtier.MidTierObjectListActionProvider"/>
+   </extension>
+
    <extension point="org.eclipse.ui.menus">
       <menuContribution locationURI="toolbar:org.eclipse.ui.main.toolbar?after=additions">
          <toolbar id="se.yrell.developertools.midTierToolbar">
@@ -105,17 +110,9 @@
          <command commandId="se.yrell.developertools.commands.midTierFlushObject"
                   icon="icons/toilet_16.png" label="Flush MidTier Object" style="push">
             <visibleWhen checkEnabled="false">
-               <or>
-                  <with variable="selection">
-                     <count value="1"/>
-                     <iterate ifEmpty="false" operator="and">
-                        <test property="se.yrell.developertools.supportsSelectedFlush"/>
-                     </iterate>
-                  </with>
-                  <with variable="activePart">
-                     <test property="se.yrell.developertools.supportsCacheFlush"/>
-                  </with>
-               </or>
+               <with variable="activePart">
+                  <test property="se.yrell.developertools.supportsCacheFlush"/>
+               </with>
             </visibleWhen>
          </command>
       </menuContribution>

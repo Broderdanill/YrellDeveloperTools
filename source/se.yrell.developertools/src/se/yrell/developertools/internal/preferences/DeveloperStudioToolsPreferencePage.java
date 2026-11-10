@@ -47,6 +47,7 @@ import se.yrell.developertools.keepalive.KeepAliveService;
 import se.yrell.developertools.midtier.MidTierConfiguration;
 import se.yrell.developertools.midtier.MidTierFlushAvailability;
 import se.yrell.developertools.midtier.MidTierMappingDialog;
+import se.yrell.developertools.midtier.MidTierQuickFlushShortcut;
 
 /**
  * Single-page settings UI with a compact feature table on the left and contextual
@@ -88,6 +89,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
     private String fastObjectValues;
     private boolean fastObjectDebug;
     private boolean midTierCacheEnabled;
+    private String midTierQuickShortcut;
     private final List<MidTierConfiguration.Mapping> midTierMappings = new ArrayList<>();
     private boolean keepAliveEnabled;
     private String keepAliveInterval;
@@ -328,6 +330,10 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
     private void createMidTierSettings(Composite parent) {
         addInfo(parent, "Map each connected AR server to a specific MidTier URL. The toolbar button is available in form and workflow editors. For multi-form workflows you can select the associated form.");
         addImportant(parent, "Per server choose Automatic, AR credentials, or RSSO / SSO browser. Automatic detects redirects to SSO and opens an embedded browser; it never passes AR credentials to the SSO domain. HTTP credentials require explicit opt-in. Full flushes affect all users.");
+        addTextSetting(parent, "Quick flush shortcut (optional)", midTierQuickShortcut, new ValueSetter() {
+            public void set(String value) { midTierQuickShortcut = value; }
+        });
+        addInfo(parent, "Optional direct form flush from Object List or form/workflow editor; no dialog. Example: CTRL+ALT+F8. Leave blank to disable. Combinations need CTRL+ALT (optional SHIFT) plus A-Z or F1-F12. Registered Eclipse shortcut conflicts are checked when saving.");
         final Table mappingsTable = new Table(parent, SWT.BORDER | SWT.FULL_SELECTION | SWT.SINGLE);
         mappingsTable.setHeaderVisible(true);
         mappingsTable.setLinesVisible(true);
@@ -494,6 +500,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         fastObjectValues = ToolsConstants.DEFAULT_FAST_FORMS_VALUES;
         fastObjectDebug = ToolsConstants.DEFAULT_FAST_FORMS_DEBUG;
         midTierCacheEnabled = ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED;
+        midTierQuickShortcut = "";
         midTierMappings.clear();
         keepAliveEnabled = ToolsConstants.DEFAULT_KEEPALIVE_ENABLED;
         keepAliveInterval = String.valueOf(ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS);
@@ -513,6 +520,14 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
             MessageDialog.openError(getShell(), "Yrell Developer Tools", "Invalid MidTier mapping: " + e.getMessage());
             selectFeature(FEATURE_MIDTIER_CACHE);
             return false;
+        }
+        if (midTierCacheEnabled) {
+            String shortcutError = MidTierQuickFlushShortcut.validate(midTierQuickShortcut);
+            if (shortcutError != null) {
+                MessageDialog.openError(getShell(), "MidTier shortcut", shortcutError);
+                selectFeature(FEATURE_MIDTIER_CACHE);
+                return false;
+            }
         }
         if (midTierCacheEnabled && midTierMappings.isEmpty()) {
             MessageDialog.openError(getShell(), "Yrell Developer Tools", "Configure at least one AR server / MidTier URL mapping before enabling MidTier Cache Flush.");
@@ -589,6 +604,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
             store.setValue(ToolsConstants.PREF_FAST_FORMS_DEBUG, fastObjectDebug);
             store.setValue(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, midTierCacheEnabled);
             store.setValue(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, MidTierConfiguration.encode(midTierMappings));
+            store.setValue(ToolsConstants.PREF_MIDTIER_QUICK_SHORTCUT, MidTierQuickFlushShortcut.normalize(midTierQuickShortcut));
             store.setValue(ToolsConstants.PREF_KEEPALIVE_ENABLED, keepAliveEnabled);
             store.setValue(ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS, parseIntOrDefault(keepAliveInterval, ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS));
             store.setValue(ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED, insightEnabled);
@@ -611,6 +627,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         node.putBoolean(ToolsConstants.PREF_FAST_FORMS_DEBUG, fastObjectDebug);
         node.putBoolean(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, midTierCacheEnabled);
         node.put(ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, MidTierConfiguration.encode(midTierMappings));
+        node.put(ToolsConstants.PREF_MIDTIER_QUICK_SHORTCUT, MidTierQuickFlushShortcut.normalize(midTierQuickShortcut));
         node.putBoolean(ToolsConstants.PREF_KEEPALIVE_ENABLED, keepAliveEnabled);
         node.putInt(ToolsConstants.PREF_KEEPALIVE_INTERVAL_SECONDS, parseIntOrDefault(keepAliveInterval, ToolsConstants.DEFAULT_KEEPALIVE_INTERVAL_SECONDS));
         node.putBoolean(ToolsConstants.PREF_OBJECT_INSIGHT_ENABLED, insightEnabled);
@@ -651,6 +668,7 @@ public class DeveloperStudioToolsPreferencePage extends PreferencePage implement
         fastObjectValues = getString(store, ToolsConstants.PREF_FAST_FORMS_VALUES, ToolsConstants.DEFAULT_FAST_FORMS_VALUES);
         fastObjectDebug = getBoolean(store, ToolsConstants.PREF_FAST_FORMS_DEBUG, ToolsConstants.DEFAULT_FAST_FORMS_DEBUG);
         midTierCacheEnabled = getBoolean(store, ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED);
+        midTierQuickShortcut = getString(store, ToolsConstants.PREF_MIDTIER_QUICK_SHORTCUT, "");
         midTierMappings.clear();
         midTierMappings.addAll(MidTierConfiguration.decode(getString(store, ToolsConstants.PREF_MIDTIER_CACHE_MAPPINGS, "")));
         keepAliveEnabled = getBoolean(store, ToolsConstants.PREF_KEEPALIVE_ENABLED, ToolsConstants.DEFAULT_KEEPALIVE_ENABLED);

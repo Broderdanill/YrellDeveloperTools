@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<!-- Large simplified silhouette for 16 px toolbars; modern, flat, high contrast. -->
+<path d="M3 2.25h9.5a1 1 0 0 1 1 1V10H2V3.25a1 1 0 0 1 1-1Z" fill="#182C46"/>
+<path d="M1.5 1.5h12.5v2.2H1.5z" rx="1" fill="#182C46"/>
+<path d="M11.2 7.6h9a2 2 0 0 1 2 2.1c-.1 4-2.9 7.5-6.1 7.5H13v2.8h5.2v2H9.1v-2h2v-3.2c-2.3-1.2-3.7-3.5-3.7-6.5a2.7 2.7 0 0 1 3.8-2.7Z" fill="#182C46"/>
+<path d="M11.5 9.6h7.9c.9 0 1.2 1.1.6 1.8-1.2 2-7.4 2-8.1 0-.8-1.1-1-1.6-.7-1.7Z" fill="#FFFFFF"/>
+<!-- Flush button and water accent distinguish toilet at tiny sizes. -->
+<circle cx="5.1" cy="5.9" r="1.4" fill="#39BBEA"/>
+</svg>

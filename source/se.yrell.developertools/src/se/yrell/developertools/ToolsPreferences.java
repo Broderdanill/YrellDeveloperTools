@@ -160,6 +160,10 @@ public final class ToolsPreferences {
         }
     }
 
+    public static String getMidTierQuickShortcut() {
+        return node().get(ToolsConstants.PREF_MIDTIER_QUICK_SHORTCUT, "").trim();
+    }
+
     public static boolean isMidTierCacheEnabled() {
         return node().getBoolean(ToolsConstants.PREF_MIDTIER_CACHE_ENABLED, ToolsConstants.DEFAULT_MIDTIER_CACHE_ENABLED);
     }

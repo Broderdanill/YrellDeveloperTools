@@ -5,6 +5,7 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.PlatformUI;
 
 import se.yrell.developertools.icons.IconPropertyButtonInstaller;
+import se.yrell.developertools.midtier.MidTierQuickFlushShortcut;
 import se.yrell.developertools.icons.IconCatalog;
 import se.yrell.developertools.keepalive.KeepAliveService;
 import se.yrell.developertools.inspector.ObjectInsightViewSupport;
@@ -25,6 +26,7 @@ public class ToolsEarlyStartup implements IStartup {
             IconCatalog.preloadAsync();
             NewFieldSuffixMonitor.install();
             KeepAliveService.getInstance().start();
+            MidTierQuickFlushShortcut.install();
             ObjectInsightViewSupport.openIfEnabledAsync();
         } catch (Throwable t) {
             Log.error("Startup failed", t);
