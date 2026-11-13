@@ -1,4 +1,10 @@
-# Yrell Developer Tools 0.1.68 — PWA Icon Helper hotfix
+# Yrell Developer Tools 0.1.69 — PWA HTTPS/PKIX fix
+
+PWA Icon Helper HTTPS CSS/font downloads on Windows use a validating union of
+Developer Studio's normal Java truststore and Windows-ROOT. Hostname
+verification is unchanged. No insecure trust-all or global SSL override.
+
+# Yrell Developer Tools 0.1.69 — PWA Icon Helper hotfix
 
 - Reads **all** icon selectors from comma-grouped CSS rules, including `:before` and `::before`, and handles both quote styles and content values appearing after other declarations.
 - Builds a small preview CSS containing the BMC `dpl-icon-font` `@font-face` definitions and the actual icon glyphs. This avoids sending the entire multi-megabyte PWA stylesheet to the embedded browser.
@@ -7,7 +13,7 @@
 - Retains existing preference keys, CSS URL, selection behavior, and all other plugin modules.
 - JDK-only synthetic CSS/HTTP tests pass; Windows Developer Studio UI integration remains to be verified.
 
-# Yrell Developer Tools 0.1.68 — Updated Message Suppressor defaults
+# Yrell Developer Tools 0.1.69 — Updated Message Suppressor defaults
 
 - Default warning code list: `5026,5033,5384,5385,5386` (previously `5033,5384`).
 - Suppression remains **disabled by default**; it must be explicitly enabled in Preferences.

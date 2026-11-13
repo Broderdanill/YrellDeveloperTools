@@ -314,11 +314,15 @@ public final class IconCatalog {
         if (!("http".equalsIgnoreCase(protocol) || "https".equalsIgnoreCase(protocol))) {
             throw new IOException("Only HTTPS/HTTP icon CSS and font URLs are supported");
         }
-        URLConnection connection = url.openConnection();
+        URLConnection connection = IconTlsSupport.open(url);
         connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
         connection.setReadTimeout(READ_TIMEOUT_MS);
         connection.setUseCaches(true);
-        return connection.getInputStream();
+        try {
+            return connection.getInputStream();
+        } catch (IOException e) {
+            throw new IOException(IconTlsSupport.describeHandshakeFailure(url, e), e);
+        }
     }
 
     private static byte[] readAllBytes(InputStream in, int maxBytes) throws IOException {

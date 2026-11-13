@@ -1,3 +1,10 @@
+## 0.1.69 — PWA Icon Helper secure Windows certificate trust fallback (2026-11-13)
+- Fix separate TLS handling: SWT-based SSO/MidTier Flush can use the Windows certificate store, while PWA IconCatalog HTTPS previously used only the Java truststore.
+- For PWA CSS and font HTTPS downloads on Windows only, accept chains validated by either the existing JVM truststore or Windows-ROOT. Preserve hostname verification; no trust-all/SSL bypass and no changes to other plugin HTTP clients or global defaults.
+- Include the actual Developer Studio java.home, configured javax.net.ssl.trustStore, and selected trust sources in PKIX failure diagnostics.
+- Add regression tests that verify fallback and mandatory rejection when neither truststore validates the chain. These do NOT replace a live Windows integration check.
+- Full BMC-dependent tests must be rerun on the user's local Developer Studio 26.1.1 SDK.
+
 ## 0.1.68 — PWA Icon Helper catalog and preview regression fix (2026-11-13)
 - Fix CSS parsing that discarded most icons in comma-separated selector declarations.
 - Accept `::before`, single-quoted glyph content, and left/right icon names.
