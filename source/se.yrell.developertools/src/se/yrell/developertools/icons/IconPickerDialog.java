@@ -294,18 +294,17 @@ public class IconPickerDialog extends TitleAreaDialog {
         }
         updatePageControls(allMatches.size());
         String html = buildHtml(page, allMatches.size());
-        // Browser.setText can update the embedded CSS/font preview without writing
-        // a temporary HTML file for each search keystroke. A file fallback is kept
-        // for SWT Browser engines that cannot accept a large inline document.
+        // Use a file-backed page even when Browser.setText() reports success:
+        // MSHTML/Edge can silently render a blank view for inline PWA CSS.
+        // Reuse one file to avoid per-search temp-file leaks; the revision
+        // query ensures that the browser reloads the updated HTML.
         try {
-            if (!browser.setText(html)) {
-                if (lastBrowserHtmlFile == null) {
-                    lastBrowserHtmlFile = File.createTempFile("yrell-pwa-icons-", ".html");
-                    lastBrowserHtmlFile.deleteOnExit();
-                }
-                Files.write(lastBrowserHtmlFile.toPath(), html.getBytes(StandardCharsets.UTF_8));
-                browser.setUrl(lastBrowserHtmlFile.toURI().toString() + "?revision=" + (++previewRevision));
+            if (lastBrowserHtmlFile == null) {
+                lastBrowserHtmlFile = File.createTempFile("yrell-pwa-icons-", ".html");
+                lastBrowserHtmlFile.deleteOnExit();
             }
+            Files.write(lastBrowserHtmlFile.toPath(), html.getBytes(StandardCharsets.UTF_8));
+            browser.setUrl(lastBrowserHtmlFile.toURI().toString() + "?revision=" + (++previewRevision));
         } catch (Throwable t) {
             Log.warn("Could not refresh PWA icon preview: " + t.getMessage());
         }

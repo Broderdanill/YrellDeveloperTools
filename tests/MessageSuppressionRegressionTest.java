@@ -184,7 +184,7 @@ public class MessageSuppressionRegressionTest {
                     "diagnostic sample keeps unsuppressed warning/error");
             File diagnosticLog = new File(dir, "message-suppression-diagnostics.log");
             String diagnosticLines = Files.readString(diagnosticLog.toPath());
-            ok(diagnosticLines.contains("0.1.67 form-success-details"),
+            ok(diagnosticLines.contains("form-success-details sourceMarkers="),
                     "form save records marker inventory");
             ok(diagnosticLines.contains("sourceMarkers=count=3[WARNING:5033/SUPPRESSED,"
                     + "WARNING:5384/SUPPRESSED,WARNING:7717/KEPT]"),
@@ -223,7 +223,7 @@ public class MessageSuppressionRegressionTest {
                                        new Marker(5384,IInfoMarker.Type.WARNING));
             ok(MessageSuppressionBridge.filterProblemsContext(only)==null, "suppress all-only-warning dialog");
             diagnosticLines = Files.readString(diagnosticLog.toPath());
-            ok(diagnosticLines.contains("0.1.67 presentation action=DROP displayedCount=0"
+            ok(diagnosticLines.contains("presentation action=DROP displayedCount=0"
                     + " input=count=2[WARNING:5033/SUPPRESSED,WARNING:5384/SUPPRESSED]"),
                     "presentation logging reflects exact dialog filtering state");
             ok(only.getMarkers().size()==2, "no source marker removed");

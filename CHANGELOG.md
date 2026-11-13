@@ -1,3 +1,13 @@
+## 0.1.68 — PWA Icon Helper catalog and preview regression fix (2026-11-13)
+- Fix CSS parsing that discarded most icons in comma-separated selector declarations.
+- Accept `::before`, single-quoted glyph content, and left/right icon names.
+- Render with compact icon-only CSS and embedded icon font instead of the full PWA bundle.
+- Restore unconditional file-backed SWT Browser preview rather than `Browser.setText`.
+- Retry empty/failed catalog after 30 seconds; identify HTML login responses separately from CSS.
+- Add 19 isolated regression assertions including local HTTP font retrieval and HTML response detection.
+- No change to other plugin features or user preferences.
+- Production JAR patched from user-supplied 0.1.67 full-source JAR and the modified IconCatalog; no BMC SDK binaries bundled.
+
 ## 0.1.67 — Default warning suppression codes (2026-11-10)
 - New default code list: `5026,5033,5384,5385,5386`.
 - Message Suppressor remains opt-in; only WARNING severity is filtered.

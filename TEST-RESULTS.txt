@@ -1,13 +1,9 @@
-Yrell Developer Tools 0.1.67 — validation record
+Yrell Developer Tools 0.1.68 — PWA Icon Helper focused hotfix
 Target: BMC Developer Studio 26.1.1 build001
-Compilation: 67 Java files; Java 17: PASS
-Full regression test suite: PASS
-MessageSuppressionRegressionTest: 85 PASS; 86 PASS with -javaagent
-New defaults: 5026,5033,5384,5385,5386 verified as WARNING-only
-Suppression remains disabled by default
-Custom code list behavior retained, errors/fatal never suppressed
-Agent bootstrap and BMC class verification with -Xverify:all: PASS
-SWT Browser ES5 DOM simulation: 60 PASS
-Scope: defaults/help/test updates only; no changed runtime suppression algorithm.
-Live Windows behavior was previously tested by the user with the five codes configured manually;
-this build still requires Windows install verification.
+Base: user-supplied 0.1.67 complete source/JAR
+IconCatalog.java (Java 17) isolated compilation: PASS
+SWT Browser.setText -> fallback transformation: exactly 1 callsite patched, PASS
+PWA CSS parsing and synthetic local HTTP tests: 19 PASS (Java -Xverify:all)
+Original 0.1.67 full regression results are retained in the 0.1.67 changelog.
+NOT rerun: BMC Developer Studio 26.1.1 full SDK-dependent suite (SDK libraries unavailable here)
+NOT tested: live Windows SWT Browser with user's actual PWA CSS URL

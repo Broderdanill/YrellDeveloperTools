@@ -1,4 +1,13 @@
-# Yrell Developer Tools 0.1.67 — Updated Message Suppressor defaults
+# Yrell Developer Tools 0.1.68 — PWA Icon Helper hotfix
+
+- Reads **all** icon selectors from comma-grouped CSS rules, including `:before` and `::before`, and handles both quote styles and content values appearing after other declarations.
+- Builds a small preview CSS containing the BMC `dpl-icon-font` `@font-face` definitions and the actual icon glyphs. This avoids sending the entire multi-megabyte PWA stylesheet to the embedded browser.
+- Always loads the preview through a local HTML file, not `SWT Browser.setText`, which could silently render a blank page.
+- Detects an HTML login page returned in place of CSS; retries empty catalogs after 30 seconds rather than caching a failure permanently.
+- Retains existing preference keys, CSS URL, selection behavior, and all other plugin modules.
+- JDK-only synthetic CSS/HTTP tests pass; Windows Developer Studio UI integration remains to be verified.
+
+# Yrell Developer Tools 0.1.68 — Updated Message Suppressor defaults
 
 - Default warning code list: `5026,5033,5384,5385,5386` (previously `5033,5384`).
 - Suppression remains **disabled by default**; it must be explicitly enabled in Preferences.
